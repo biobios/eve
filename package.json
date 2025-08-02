@@ -1,0 +1,96 @@
+{
+  "name": "eve",
+  "version": "1.0.0",
+  "description": "Electronデスクトップアプリケーション",
+  "main": "dist/main.js",
+  "homepage": "https://github.com/yourusername/eve",
+  "scripts": {
+    "build:ts": "tsc",
+    "build:ts:watch": "tsc --watch",
+    "prestart": "npm run build:ts",
+    "start": "electron ./dist/main.js",
+    "dev": "npm run build:ts && electron ./dist/main.js --enable-logging",
+    "dev:watch": "concurrently \"npm run build:ts:watch\" \"wait-on dist/main.js && electron ./dist/main.js --enable-logging\"",
+    "build": "npm run build:ts && electron-builder",
+    "build:win": "npm run build:ts && electron-builder --win",
+    "build:mac": "npm run build:ts && electron-builder --mac",
+    "build:linux": "npm run build:ts && electron-builder --linux",
+    "dist": "npm run build",
+    "pack": "npm run build:ts && electron-builder --dir",
+    "clean": "rimraf dist",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [
+    "electron",
+    "desktop",
+    "app"
+  ],
+  "author": "Your Name <your.email@example.com>",
+  "license": "MIT",
+  "devDependencies": {
+    "@types/node": "^24.1.0",
+    "@types/uuid": "^10.0.0",
+    "concurrently": "^9.2.0",
+    "electron": "^37.2.5",
+    "electron-builder": "^26.0.12",
+    "rimraf": "^6.0.1",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.9.2",
+    "wait-on": "^8.0.4"
+  },
+  "build": {
+    "appId": "com.yourcompany.eve",
+    "productName": "Eve",
+    "directories": {
+      "output": "dist"
+    },
+    "files": [
+      "dist/**/*",
+      "index.html",
+      "package.json",
+      "assets/**/*"
+    ],
+    "mac": {
+      "category": "public.app-category.productivity",
+      "target": [
+        {
+          "target": "dmg",
+          "arch": [
+            "x64",
+            "arm64"
+          ]
+        }
+      ]
+    },
+    "win": {
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64",
+            "ia32"
+          ]
+        }
+      ]
+    },
+    "linux": {
+      "target": [
+        {
+          "target": "AppImage",
+          "arch": [
+            "x64"
+          ]
+        }
+      ]
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true
+    }
+  },
+  "dependencies": {
+    "@langchain/core": "^0.3.66",
+    "@langchain/google-genai": "^0.2.16",
+    "langchain": "^0.3.30"
+  }
+}
