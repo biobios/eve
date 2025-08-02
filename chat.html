@@ -149,6 +149,36 @@
             background: rgba(247, 250, 252, 0.5);
         }
 
+        .chat-controls {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 12px;
+        }
+
+        .btn-clear {
+            background: #f56565;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            padding: 8px 16px;
+            cursor: pointer;
+            font-size: 12px;
+            font-weight: 600;
+            transition: all 0.3s ease;
+        }
+
+        .btn-clear:hover:not(:disabled) {
+            background: #e53e3e;
+            transform: translateY(-1px);
+        }
+
+        .btn-clear:disabled {
+            background: #cbd5e0;
+            cursor: not-allowed;
+            transform: none;
+        }
+
         .chat-input-wrapper {
             display: flex;
             gap: 12px;
@@ -283,6 +313,10 @@
         </div>
 
         <div class="chat-input-container">
+            <div class="chat-controls">
+                <span style="font-size: 12px; color: #666;">💡 Shift+Enterで改行</span>
+                <button class="btn-clear" id="clearHistoryBtn" disabled>🗑️ 履歴クリア</button>
+            </div>
             <div class="chat-input-wrapper">
                 <textarea id="chatInput" class="chat-input" placeholder="メッセージを入力してください..." rows="1"
                     disabled></textarea>

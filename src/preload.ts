@@ -6,6 +6,8 @@ interface ElectronAPI {
     // AI チャット関連
     setApiKey: (apiKey: string) => Promise<boolean>;
     sendMessage: (message: string) => Promise<string>;
+    clearConversation: () => Promise<boolean>;
+    getConversationHistory: () => Promise<Array<{type: 'user' | 'ai', content: string, timestamp: Date}>>;
 
     // その他のユーティリティ
     getVersion: () => Promise<string>;
@@ -18,6 +20,12 @@ const electronAPI: ElectronAPI = {
 
     // メッセージを送信
     sendMessage: (message: string) => ipcRenderer.invoke('send-message', message),
+
+    // 会話履歴をクリア
+    clearConversation: () => ipcRenderer.invoke('clear-conversation'),
+
+    // 会話履歴を取得
+    getConversationHistory: () => ipcRenderer.invoke('get-conversation-history'),
 
     // バージョン情報を取得
     getVersion: () => ipcRenderer.invoke('get-version')

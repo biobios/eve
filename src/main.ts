@@ -13,6 +13,9 @@ let chatModel: ChatGoogleGenerativeAI | null = null;
 // LangGraph workflow
 let workflow: any = null;
 
+// 会話履歴を保持
+let conversationHistory: Array<HumanMessage | AIMessage> = [];
+
 // チャット状態の型定義
 interface ChatState {
   messages: Array<HumanMessage | AIMessage>;
@@ -116,19 +119,42 @@ const setupIPCHandlers = () => {
     try {
       // HumanMessageを作成
       const humanMessage = new HumanMessage({ content: message });
+      
+      // 会話履歴に追加
+      conversationHistory.push(humanMessage);
 
-      // LangGraphワークフローを実行
+      // LangGraphワークフローを実行（履歴を含む）
       const result = await workflow.invoke({
-        messages: [humanMessage]
+        messages: [...conversationHistory]
       });
 
       // 最後のメッセージ（AIの応答）を取得
       const lastMessage = result.messages[result.messages.length - 1];
+      
+      // AIの応答も履歴に追加
+      const aiMessage = new AIMessage({ content: lastMessage.content });
+      conversationHistory.push(aiMessage);
+      
       return lastMessage.content;
     } catch (error) {
       console.error('AI chat error:', error);
       throw error;
     }
+  });
+
+  // 会話履歴をクリアするハンドラー
+  ipcMain.handle('clear-conversation', async (_event: IpcMainInvokeEvent) => {
+    conversationHistory = [];
+    return true;
+  });
+
+  // 会話履歴を取得するハンドラー
+  ipcMain.handle('get-conversation-history', async (_event: IpcMainInvokeEvent) => {
+    return conversationHistory.map(msg => ({
+      type: msg instanceof HumanMessage ? 'user' : 'ai',
+      content: msg.content,
+      timestamp: new Date() // 実際の実装では、メッセージにタイムスタンプを含める必要があります
+    }));
   });
 
   // バージョン情報を取得するハンドラー

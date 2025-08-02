@@ -21,7 +21,8 @@ class ChatApp {
         chatInput: document.getElementById('chatInput') as HTMLTextAreaElement,
         sendBtn: document.getElementById('sendBtn') as HTMLButtonElement,
         sendBtnText: document.getElementById('sendBtnText') as HTMLSpanElement,
-        sendBtnLoading: document.getElementById('sendBtnLoading') as HTMLSpanElement
+        sendBtnLoading: document.getElementById('sendBtnLoading') as HTMLSpanElement,
+        clearHistoryBtn: document.getElementById('clearHistoryBtn') as HTMLButtonElement
     };
 
     constructor() {
@@ -57,6 +58,9 @@ class ChatApp {
 
         // チャット入力の自動リサイズ
         this.elements.chatInput.addEventListener('input', () => this.autoResizeTextarea());
+
+        // 会話履歴クリアボタン
+        this.elements.clearHistoryBtn.addEventListener('click', () => this.handleClearHistory());
     }
 
     private async handleSetApiKey(): Promise<void> {
@@ -79,14 +83,18 @@ class ChatApp {
                 this.elements.apiKeySection.classList.add('hidden');
                 this.elements.chatInput.disabled = false;
                 this.elements.sendBtn.disabled = false;
+                this.elements.clearHistoryBtn.disabled = false;
                 this.elements.chatInput.focus();
 
                 // ウェルカムメッセージを追加
                 this.addMessage({
                     type: 'ai',
-                    content: 'API キーが正常に設定されました！何でもお聞きください。😊',
+                    content: 'API キーが正常に設定されました！何でもお聞きください。😊\n\n💡 会話履歴機能が有効になっており、AIは過去の会話を記憶しています。',
                     timestamp: new Date()
                 });
+
+                // 既存の会話履歴があれば復元
+                this.restoreConversationHistory();
             } else {
                 this.showStatus('❌ API キーの設定に失敗しました', 'error');
             }
@@ -169,6 +177,7 @@ class ChatApp {
         this.isLoading = loading;
         this.elements.sendBtn.disabled = loading || !this.isApiKeySet;
         this.elements.chatInput.disabled = loading;
+        this.elements.clearHistoryBtn.disabled = loading || !this.isApiKeySet;
 
         if (loading) {
             this.elements.sendBtnText.style.display = 'none';
@@ -196,9 +205,75 @@ class ChatApp {
         }, 100);
     }
 
+    private async restoreConversationHistory(): Promise<void> {
+        try {
+            const history = await (window as any).electronAPI.getConversationHistory();
+            
+            if (history && history.length > 0) {
+                // 既存のウェルカムメッセージを削除（最新のもの）
+                const messages = this.elements.chatMessagesContainer.children;
+                if (messages.length > 0) {
+                    const lastMessage = messages[messages.length - 1];
+                    if (lastMessage.classList.contains('ai') && lastMessage.textContent?.includes('API キーが正常に設定されました')) {
+                        lastMessage.remove();
+                        this.chatMessages.pop(); // 配列からも削除
+                    }
+                }
+
+                // 履歴からメッセージを復元
+                history.forEach((msg: any) => {
+                    this.addMessage({
+                        type: msg.type,
+                        content: msg.content,
+                        timestamp: new Date(msg.timestamp)
+                    });
+                });
+
+                // 復元完了メッセージを追加
+                this.addMessage({
+                    type: 'ai',
+                    content: '📜 会話履歴を復元しました。前回の続きから会話を開始できます。',
+                    timestamp: new Date()
+                });
+            }
+        } catch (error) {
+            console.error('Failed to restore conversation history:', error);
+        }
+    }
+
+    private async handleClearHistory(): Promise<void> {
+        if (!this.isApiKeySet) return;
+
+        const confirmed = confirm('会話履歴をクリアしてもよろしいですか？この操作は取り消せません。');
+        if (!confirmed) return;
+
+        try {
+            await (window as any).electronAPI.clearConversation();
+            
+            // UI上の会話履歴もクリア
+            this.chatMessages = [];
+            this.elements.chatMessagesContainer.innerHTML = '';
+            
+            // 成功メッセージを表示
+            this.addMessage({
+                type: 'ai',
+                content: '✅ 会話履歴がクリアされました。新しい会話を開始できます。',
+                timestamp: new Date()
+            });
+        } catch (error) {
+            console.error('Clear history error:', error);
+            this.addMessage({
+                type: 'error',
+                content: 'エラー: 会話履歴のクリアに失敗しました。',
+                timestamp: new Date()
+            });
+        }
+    }
+
     private updateUI(): void {
         this.elements.chatInput.disabled = !this.isApiKeySet;
         this.elements.sendBtn.disabled = !this.isApiKeySet;
+        this.elements.clearHistoryBtn.disabled = !this.isApiKeySet;
     }
 }
 
