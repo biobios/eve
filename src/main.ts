@@ -1,4 +1,6 @@
+import { AIMessage, HumanMessage } from "@langchain/core/messages";
 import { ChatGoogleGenerativeAI } from '@langchain/google-genai';
+import { MessagesAnnotation, StateGraph } from "@langchain/langgraph";
 import { app, BrowserWindow, ipcMain, IpcMainInvokeEvent } from 'electron';
 import * as path from 'path';
 
@@ -8,18 +10,56 @@ let mainWindow: BrowserWindow | null = null;
 // Gemini AI インスタンス
 let chatModel: ChatGoogleGenerativeAI | null = null;
 
-// APIキーを設定
+// LangGraph workflow
+let workflow: any = null;
+
+// チャット状態の型定義
+interface ChatState {
+  messages: Array<HumanMessage | AIMessage>;
+}
+
+// APIキーを設定してLangGraphワークフローを初期化
 const initializeAI = (apiKey: string) => {
   try {
     chatModel = new ChatGoogleGenerativeAI({
       model: "gemini-1.5-flash",
       apiKey: apiKey
     });
+
+    // LangGraphワークフローを作成
+    workflow = createChatWorkflow();
+
     return true;
   } catch (error) {
     console.error('AI initialization failed:', error);
     return false;
   }
+};
+
+// LangGraphワークフローを作成
+const createChatWorkflow = () => {
+  // チャットノード: AIモデルを呼び出してレスポンスを生成
+  const chatNode = async (state: typeof MessagesAnnotation.State) => {
+    if (!chatModel) {
+      throw new Error('Chat model not initialized');
+    }
+
+    try {
+      const response = await chatModel.invoke(state.messages);
+      return { messages: [response] };
+    } catch (error) {
+      console.error('Chat node error:', error);
+      throw error;
+    }
+  };
+
+  // StateGraphを作成
+  const graph = new StateGraph(MessagesAnnotation)
+    .addNode("chat", chatNode)
+    .addEdge("__start__", "chat")
+    .addEdge("chat", "__end__");
+
+  return graph.compile();
 };
 
 function createWindow(): void {
@@ -69,13 +109,22 @@ const setupIPCHandlers = () => {
 
   // メッセージを送信するハンドラー
   ipcMain.handle('send-message', async (_event: IpcMainInvokeEvent, message: string) => {
-    if (!chatModel) {
-      throw new Error('AI model not initialized. Please set API key first.');
+    if (!workflow) {
+      throw new Error('AI workflow not initialized. Please set API key first.');
     }
 
     try {
-      const response = await chatModel.invoke(message);
-      return response.content;
+      // HumanMessageを作成
+      const humanMessage = new HumanMessage({ content: message });
+
+      // LangGraphワークフローを実行
+      const result = await workflow.invoke({
+        messages: [humanMessage]
+      });
+
+      // 最後のメッセージ（AIの応答）を取得
+      const lastMessage = result.messages[result.messages.length - 1];
+      return lastMessage.content;
     } catch (error) {
       console.error('AI chat error:', error);
       throw error;
