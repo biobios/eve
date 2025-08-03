@@ -12,10 +12,15 @@ interface ChatSession {
 // フロントエンドに公開するAPIの型定義
 interface ElectronAPI {
     // AI チャット関連
-    setApiKey: (apiKey: string) => Promise<boolean>;
+    setApiKey: (apiKey: string, saveKey?: boolean) => Promise<boolean>;
     sendMessage: (message: string) => Promise<string>;
     clearConversation: () => Promise<boolean>;
     getConversationHistory: (sessionId?: string) => Promise<Array<{ type: 'user' | 'ai', content: string, timestamp: Date }>>;
+
+    // API キー管理
+    hasSavedApiKey: () => Promise<boolean>;
+    deleteSavedApiKey: () => Promise<boolean>;
+    isAiInitialized: () => Promise<boolean>;
 
     // セッション管理
     createSession: () => Promise<ChatSession>;
@@ -23,14 +28,17 @@ interface ElectronAPI {
     getSessions: () => Promise<ChatSession[]>;
     deleteSession: (sessionId: string) => Promise<boolean>;
 
+    // イベントリスナー
+    onAiInitialized: (callback: (initialized: boolean) => void) => () => void;
+
     // その他のユーティリティ
     getVersion: () => Promise<string>;
 }
 
 // セキュアなAPIをフロントエンドに公開
 const electronAPI: ElectronAPI = {
-    // API キーを設定
-    setApiKey: (apiKey: string) => ipcRenderer.invoke('set-api-key', apiKey),
+    // API キーを設定（保存オプション付き）
+    setApiKey: (apiKey: string, saveKey: boolean = false) => ipcRenderer.invoke('set-api-key', apiKey, saveKey),
 
     // メッセージを送信
     sendMessage: (message: string) => ipcRenderer.invoke('send-message', message),
@@ -41,11 +49,27 @@ const electronAPI: ElectronAPI = {
     // 会話履歴を取得
     getConversationHistory: (sessionId?: string) => ipcRenderer.invoke('get-conversation-history', sessionId),
 
+    // API キー管理
+    hasSavedApiKey: () => ipcRenderer.invoke('has-saved-api-key'),
+    deleteSavedApiKey: () => ipcRenderer.invoke('delete-saved-api-key'),
+    isAiInitialized: () => ipcRenderer.invoke('is-ai-initialized'),
+
     // セッション管理
     createSession: () => ipcRenderer.invoke('create-session'),
     switchSession: (sessionId: string) => ipcRenderer.invoke('switch-session', sessionId),
     getSessions: () => ipcRenderer.invoke('get-sessions'),
     deleteSession: (sessionId: string) => ipcRenderer.invoke('delete-session', sessionId),
+
+    // イベントリスナー
+    onAiInitialized: (callback: (initialized: boolean) => void) => {
+        const listener = (_event: any, initialized: boolean) => callback(initialized);
+        ipcRenderer.on('ai-initialized', listener);
+        
+        // クリーンアップ関数を返す
+        return () => {
+            ipcRenderer.removeListener('ai-initialized', listener);
+        };
+    },
 
     // バージョン情報を取得
     getVersion: () => ipcRenderer.invoke('get-version')

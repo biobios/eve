@@ -5,6 +5,7 @@ import { SqliteSaver } from "@langchain/langgraph-checkpoint-sqlite";
 import { app, BrowserWindow, ipcMain, IpcMainInvokeEvent } from 'electron';
 import * as path from 'path';
 import { v4 as uuidv4 } from 'uuid';
+import { EncryptionKeyManager, DataEncryption, ApiKeyStorage } from './crypto-utils';
 
 // ウィンドウの参照を保持
 let mainWindow: BrowserWindow | null = null;
@@ -21,6 +22,9 @@ let checkpointer: SqliteSaver | null = null;
 // 現在のセッションID
 let currentSessionId: string | null = null;
 
+// APIキーストレージインスタンス
+let apiKeyStorage: ApiKeyStorage | null = null;
+
 // セッション管理用の型定義
 interface ChatSession {
   id: string;
@@ -34,8 +38,46 @@ interface ChatState {
   messages: Array<HumanMessage | AIMessage>;
 }
 
+// APIキーストレージを初期化
+const initializeApiKeyStorage = async (): Promise<void> => {
+  try {
+    // 暗号化キーを取得または作成
+    const encryptionKey = await EncryptionKeyManager.getOrCreateEncryptionKey('api_keys');
+    
+    // データ暗号化インスタンスを作成
+    const dataEncryption = new DataEncryption(encryptionKey);
+    
+    // APIキーストレージを初期化
+    apiKeyStorage = new ApiKeyStorage(dataEncryption);
+    
+    console.log('API key storage initialized');
+  } catch (error) {
+    console.error('Failed to initialize API key storage:', error);
+    throw error;
+  }
+};
+
+// 保存されたAPIキーを使用してAIを初期化
+const initializeAIFromStorage = async (): Promise<boolean> => {
+  if (!apiKeyStorage) {
+    return false;
+  }
+
+  try {
+    const savedApiKey = apiKeyStorage.getApiKey('gemini');
+    if (savedApiKey) {
+      console.log('Found saved API key, initializing AI...');
+      return await initializeAI(savedApiKey);
+    }
+    return false;
+  } catch (error) {
+    console.error('Failed to initialize AI from storage:', error);
+    return false;
+  }
+};
+
 // APIキーを設定してLangGraphワークフローを初期化
-const initializeAI = async (apiKey: string) => {
+const initializeAI = async (apiKey: string, saveKey: boolean = false) => {
   try {
     chatModel = new ChatGoogleGenerativeAI({
       model: "gemini-1.5-flash",
@@ -48,6 +90,12 @@ const initializeAI = async (apiKey: string) => {
 
     // LangGraphワークフローを作成
     workflow = createChatWorkflow();
+
+    // APIキーを保存する場合
+    if (saveKey && apiKeyStorage) {
+      apiKeyStorage.saveApiKey('gemini', apiKey);
+      console.log('API key saved to storage');
+    }
 
     return true;
   } catch (error) {
@@ -109,6 +157,22 @@ function createWindow(): void {
     if (process.env.NODE_ENV === 'development') {
       mainWindow?.webContents.openDevTools();
     }
+
+    // 保存されたAPIキーがあれば自動で初期化を試行
+    initializeAIFromStorage().then((initialized) => {
+      if (initialized) {
+        console.log('AI initialized from saved API key');
+        // フロントエンドに初期化完了を通知
+        mainWindow?.webContents.send('ai-initialized', true);
+      } else {
+        console.log('No saved API key found, user needs to set API key');
+        // フロントエンドに初期化が必要であることを通知
+        mainWindow?.webContents.send('ai-initialized', false);
+      }
+    }).catch((error) => {
+      console.error('Failed to initialize AI from storage:', error);
+      mainWindow?.webContents.send('ai-initialized', false);
+    });
   });
 
   // ウィンドウが閉じられたときの処理
@@ -122,9 +186,45 @@ function createWindow(): void {
 
 // IPC ハンドラーを設定
 const setupIPCHandlers = () => {
-  // APIキーを設定するハンドラー
-  ipcMain.handle('set-api-key', async (_event: IpcMainInvokeEvent, apiKey: string) => {
-    return await initializeAI(apiKey);
+  // APIキーを設定するハンドラー（保存オプション付き）
+  ipcMain.handle('set-api-key', async (_event: IpcMainInvokeEvent, apiKey: string, saveKey: boolean = false) => {
+    return await initializeAI(apiKey, saveKey);
+  });
+
+  // 保存されたAPIキーが存在するかチェック
+  ipcMain.handle('has-saved-api-key', async (_event: IpcMainInvokeEvent) => {
+    if (!apiKeyStorage) {
+      return false;
+    }
+    
+    try {
+      const savedKey = apiKeyStorage.getApiKey('gemini');
+      return savedKey !== null;
+    } catch (error) {
+      console.error('Error checking saved API key:', error);
+      return false;
+    }
+  });
+
+  // 保存されたAPIキーを削除
+  ipcMain.handle('delete-saved-api-key', async (_event: IpcMainInvokeEvent) => {
+    if (!apiKeyStorage) {
+      return false;
+    }
+    
+    try {
+      apiKeyStorage.deleteApiKey('gemini');
+      console.log('Saved API key deleted');
+      return true;
+    } catch (error) {
+      console.error('Error deleting saved API key:', error);
+      return false;
+    }
+  });
+
+  // AIの初期化状態をチェック
+  ipcMain.handle('is-ai-initialized', async (_event: IpcMainInvokeEvent) => {
+    return workflow !== null && chatModel !== null;
   });
 
   // 新しいセッションを作成するハンドラー
@@ -320,7 +420,10 @@ const setupIPCHandlers = () => {
 };
 
 // Electronの初期化が完了したときに実行
-app.whenReady().then(() => {
+app.whenReady().then(async () => {
+  // APIキーストレージを初期化
+  await initializeApiKeyStorage();
+  
   createWindow();
   setupIPCHandlers();
 
@@ -347,6 +450,14 @@ app.on('activate', () => {
 // アプリケーション終了時の処理
 app.on('before-quit', (event) => {
   console.log('Application is about to quit');
+  
+  // データベース接続を閉じる
+  try {
+    EncryptionKeyManager.closeDatabase();
+    ApiKeyStorage.closeDatabase();
+  } catch (error) {
+    console.error('Error closing databases:', error);
+  }
 });
 
 // セキュリティ: 新しいウィンドウの作成を制御

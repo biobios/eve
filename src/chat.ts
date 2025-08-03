@@ -24,8 +24,10 @@ class ChatApp {
     private elements = {
         apiKeySection: document.getElementById('apiKeySection') as HTMLDivElement,
         apiKeyInput: document.getElementById('apiKeyInput') as HTMLInputElement,
+        saveApiKeyCheckbox: document.getElementById('saveApiKeyCheckbox') as HTMLInputElement,
         setApiKeyBtn: document.getElementById('setApiKeyBtn') as HTMLButtonElement,
         cancelApiKeyBtn: document.getElementById('cancelApiKeyBtn') as HTMLButtonElement,
+        deleteSavedApiKeyBtn: document.getElementById('deleteSavedApiKeyBtn') as HTMLButtonElement,
         sessionSection: document.getElementById('sessionSection') as HTMLDivElement,
         sessionSelect: document.getElementById('sessionSelect') as HTMLSelectElement,
         newSessionBtn: document.getElementById('newSessionBtn') as HTMLButtonElement,
@@ -51,12 +53,16 @@ class ChatApp {
 
     private init(): void {
         this.setupEventListeners();
+        this.checkForSavedApiKey();
         this.updateUI();
     }
 
     private setupEventListeners(): void {
         // API キー設定ボタン
         this.elements.setApiKeyBtn.addEventListener('click', () => this.handleSetApiKey());
+
+        // 保存済みAPIキー削除ボタン
+        this.elements.deleteSavedApiKeyBtn.addEventListener('click', () => this.handleDeleteSavedApiKey());
 
         // API キー入力でEnterキー
         this.elements.apiKeyInput.addEventListener('keypress', (e) => {
@@ -97,10 +103,18 @@ class ChatApp {
                 this.handleConfirmDialog(false);
             }
         });
+
+        // AI初期化状態のリスナーを設定
+        if ((window as any).electronAPI?.onAiInitialized) {
+            (window as any).electronAPI.onAiInitialized((initialized: boolean) => {
+                this.handleAiInitialized(initialized);
+            });
+        }
     }
 
     private async handleSetApiKey(): Promise<void> {
         const apiKey = this.elements.apiKeyInput.value.trim();
+        const saveKey = this.elements.saveApiKeyCheckbox.checked;
 
         if (!apiKey) {
             this.showStatus('API キーを入力してください', 'error');
@@ -111,11 +125,12 @@ class ChatApp {
         this.elements.setApiKeyBtn.disabled = true;
 
         try {
-            const success = await (window as any).electronAPI.setApiKey(apiKey);
+            const success = await (window as any).electronAPI.setApiKey(apiKey, saveKey);
 
             if (success) {
                 this.isApiKeySet = true;
-                this.showStatus('✅ 接続完了！セッションを作成してください', 'connected');
+                const saveMessage = saveKey ? '（暗号化保存されました）' : '';
+                this.showStatus(`✅ 接続完了！セッションを作成してください ${saveMessage}`, 'connected');
                 this.elements.apiKeySection.classList.add('hidden');
                 this.elements.sessionSection.classList.remove('hidden');
 
@@ -136,6 +151,77 @@ class ChatApp {
             this.showStatus('❌ API キーの設定中にエラーが発生しました', 'error');
         } finally {
             this.elements.setApiKeyBtn.disabled = false;
+        }
+    }
+
+    /**
+     * 保存されたAPIキーがあるかチェックして、自動初期化を試行
+     */
+    private async checkForSavedApiKey(): Promise<void> {
+        try {
+            const hasSavedKey = await (window as any).electronAPI.hasSavedApiKey();
+            if (hasSavedKey) {
+                this.elements.deleteSavedApiKeyBtn.style.display = 'block';
+                this.elements.saveApiKeyCheckbox.checked = true; // デフォルトでチェック
+                
+                // AIが既に初期化されているかチェック
+                const isInitialized = await (window as any).electronAPI.isAiInitialized();
+                if (isInitialized) {
+                    this.handleAiInitialized(true);
+                }
+            }
+        } catch (error) {
+            console.error('Error checking saved API key:', error);
+        }
+    }
+
+    /**
+     * AI初期化状態が変更されたときの処理
+     */
+    private handleAiInitialized(initialized: boolean): void {
+        if (initialized) {
+            this.isApiKeySet = true;
+            this.showStatus('✅ 保存されたAPIキーで接続完了！', 'connected');
+            this.elements.apiKeySection.classList.add('hidden');
+            this.elements.sessionSection.classList.remove('hidden');
+            
+            // セッション一覧をロード
+            this.loadSessions().then(() => {
+                // ウェルカムメッセージを追加
+                this.addMessage({
+                    type: 'ai',
+                    content: '保存されたAPIキーで正常に接続されました！セッションを選択するか、新しいセッションを作成して会話を開始してください。😊',
+                    timestamp: new Date()
+                });
+            });
+        } else {
+            this.showStatus('APIキーを設定してください', '');
+        }
+    }
+
+    /**
+     * 保存されたAPIキーを削除
+     */
+    private async handleDeleteSavedApiKey(): Promise<void> {
+        const confirmed = await this.showConfirmDialog(
+            '保存されたAPIキーの削除',
+            '保存されているAPIキーを削除しますか？\n次回起動時にAPIキーの入力が必要になります。'
+        );
+
+        if (confirmed) {
+            try {
+                const success = await (window as any).electronAPI.deleteSavedApiKey();
+                if (success) {
+                    this.elements.deleteSavedApiKeyBtn.style.display = 'none';
+                    this.elements.saveApiKeyCheckbox.checked = false;
+                    this.showStatus('保存されたAPIキーを削除しました', 'connected');
+                } else {
+                    this.showStatus('APIキーの削除に失敗しました', 'error');
+                }
+            } catch (error) {
+                console.error('Error deleting saved API key:', error);
+                this.showStatus('APIキーの削除中にエラーが発生しました', 'error');
+            }
         }
     }
 
