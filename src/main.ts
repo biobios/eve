@@ -128,14 +128,14 @@ const setupIPCHandlers = () => {
   });
 
   // 新しいセッションを作成するハンドラー
-  ipcMain.handle('create-session', async (_event: IpcMainInvokeEvent, sessionName?: string) => {
+  ipcMain.handle('create-session', async (_event: IpcMainInvokeEvent) => {
     try {
       const sessionId = uuidv4();
       currentSessionId = sessionId;
 
       const session: ChatSession = {
         id: sessionId,
-        name: sessionName || `新しい会話 ${new Date().toLocaleString()}`,
+        name: '新しい会話',
         createdAt: new Date(),
         lastMessageAt: new Date()
       };
@@ -244,10 +244,31 @@ const setupIPCHandlers = () => {
           }
           seenThreadIds.add(sessionId);
 
+          // 会話履歴を取得してセッション名を決定
+          let sessionName = '新しい会話';
+          try {
+            const fullCheckpoint = await checkpointer.get({ configurable: { thread_id: sessionId } });
+            if (fullCheckpoint && fullCheckpoint.channel_values && fullCheckpoint.channel_values.messages) {
+              const messages = fullCheckpoint.channel_values.messages;
+              if (Array.isArray(messages) && messages.length > 0) {
+                // 最初のユーザーメッセージを探す
+                const firstUserMessage = messages.find((msg: any) => msg._getType() === 'human');
+                if (firstUserMessage && firstUserMessage.content) {
+                  // 最初の30文字を取得（改行や余分な空白を除去）
+                  const content = firstUserMessage.content.replace(/\s+/g, ' ').trim();
+                  sessionName = content.length > 30 ? content.substring(0, 30) + '...' : content;
+                }
+              }
+            }
+          } catch (err) {
+            // エラーが発生した場合は、デフォルトの名前を使用
+            console.warn('Failed to get session name for', sessionId, err);
+          }
+
           // セッション情報を構築
           const session: ChatSession = {
             id: sessionId,
-            name: `会話 ${sessionId.substring(0, 8)}`,
+            name: sessionName,
             createdAt: new Date(),
             lastMessageAt: new Date()
           };

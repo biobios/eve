@@ -18,7 +18,7 @@ interface ElectronAPI {
     getConversationHistory: (sessionId?: string) => Promise<Array<{ type: 'user' | 'ai', content: string, timestamp: Date }>>;
 
     // セッション管理
-    createSession: (sessionName?: string) => Promise<ChatSession>;
+    createSession: () => Promise<ChatSession>;
     switchSession: (sessionId: string) => Promise<boolean>;
     getSessions: () => Promise<ChatSession[]>;
     deleteSession: (sessionId: string) => Promise<boolean>;
@@ -42,7 +42,7 @@ const electronAPI: ElectronAPI = {
     getConversationHistory: (sessionId?: string) => ipcRenderer.invoke('get-conversation-history', sessionId),
 
     // セッション管理
-    createSession: (sessionName?: string) => ipcRenderer.invoke('create-session', sessionName),
+    createSession: () => ipcRenderer.invoke('create-session'),
     switchSession: (sessionId: string) => ipcRenderer.invoke('switch-session', sessionId),
     getSessions: () => ipcRenderer.invoke('get-sessions'),
     deleteSession: (sessionId: string) => ipcRenderer.invoke('delete-session', sessionId),

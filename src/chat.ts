@@ -37,11 +37,6 @@ class ChatApp {
         sendBtnText: document.getElementById('sendBtnText') as HTMLSpanElement,
         sendBtnLoading: document.getElementById('sendBtnLoading') as HTMLSpanElement,
         clearHistoryBtn: document.getElementById('clearHistoryBtn') as HTMLButtonElement,
-        // モーダル要素
-        sessionNameModal: document.getElementById('sessionNameModal') as HTMLDivElement,
-        sessionNameInput: document.getElementById('sessionNameInput') as HTMLInputElement,
-        confirmSessionBtn: document.getElementById('confirmSessionBtn') as HTMLButtonElement,
-        cancelSessionBtn: document.getElementById('cancelSessionBtn') as HTMLButtonElement,
         // 確認ダイアログ要素
         confirmModal: document.getElementById('confirmModal') as HTMLDivElement,
         confirmTitle: document.getElementById('confirmTitle') as HTMLHeadingElement,
@@ -91,26 +86,6 @@ class ChatApp {
 
         // 会話履歴クリアボタン
         this.elements.clearHistoryBtn.addEventListener('click', () => this.handleClearHistory());
-
-        // モーダル関連
-        this.elements.confirmSessionBtn.addEventListener('click', () => this.handleConfirmNewSession());
-        this.elements.cancelSessionBtn.addEventListener('click', () => this.hideSessionNameModal());
-
-        // モーダル外をクリックして閉じる
-        this.elements.sessionNameModal.addEventListener('click', (e) => {
-            if (e.target === this.elements.sessionNameModal) {
-                this.hideSessionNameModal();
-            }
-        });
-
-        // セッション名入力でEnterキー
-        this.elements.sessionNameInput.addEventListener('keypress', (e) => {
-            if (e.key === 'Enter') {
-                this.handleConfirmNewSession();
-            } else if (e.key === 'Escape') {
-                this.hideSessionNameModal();
-            }
-        });
 
         // 確認ダイアログ関連
         this.elements.confirmOkBtn.addEventListener('click', () => this.handleConfirmDialog(true));
@@ -175,6 +150,9 @@ class ChatApp {
         const messageText = this.elements.chatInput.value.trim();
         if (!messageText) return;
 
+        // セッションが「新しい会話」の場合、最初のメッセージになるかチェック
+        const isFirstMessage = this.currentSession.name === '新しい会話' && this.chatMessages.length === 0;
+
         // ユーザーメッセージを追加
         const userMessage: ChatMessage = {
             type: 'user',
@@ -200,6 +178,12 @@ class ChatApp {
                 timestamp: new Date()
             };
             this.addMessage(aiMessage);
+
+            // 最初のメッセージの場合、セッション一覧を更新してセッション名を更新
+            if (isFirstMessage) {
+                await this.loadSessions();
+                this.updateSessionSelect();
+            }
 
         } catch (error) {
             console.error('Send message error:', error);
@@ -366,26 +350,8 @@ class ChatApp {
     }
 
     private async handleNewSession(): Promise<void> {
-        this.showSessionNameModal();
-    }
-
-    private showSessionNameModal(): void {
-        this.elements.sessionNameInput.value = '';
-        this.elements.sessionNameModal.classList.add('show');
-        this.elements.sessionNameInput.focus();
-    }
-
-    private hideSessionNameModal(): void {
-        this.elements.sessionNameModal.classList.remove('show');
-    }
-
-    private async handleConfirmNewSession(): Promise<void> {
-        const sessionName = this.elements.sessionNameInput.value.trim() || undefined;
-
-        this.hideSessionNameModal();
-
         try {
-            const newSession = await (window as any).electronAPI.createSession(sessionName);
+            const newSession = await (window as any).electronAPI.createSession();
             this.currentSession = newSession;
             this.sessions.push(newSession);
             this.updateSessionSelect();
