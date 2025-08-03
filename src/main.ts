@@ -287,12 +287,16 @@ const setupIPCHandlers = () => {
   // セッションを削除するハンドラー
   ipcMain.handle('delete-session', async (_event: IpcMainInvokeEvent, sessionId: string) => {
     try {
+      // SQLiteからセッションデータを永久削除
+      if (checkpointer) {
+        await checkpointer.deleteThread(sessionId);
+      }
+
       // 現在のセッションが削除された場合はリセット
       if (currentSessionId === sessionId) {
         currentSessionId = null;
       }
 
-      // 新しいセッションを作成してもらう
       return true;
     } catch (error) {
       console.error('Delete session error:', error);
