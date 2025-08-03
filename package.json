@@ -92,6 +92,8 @@
     "@langchain/core": "^0.3.66",
     "@langchain/google-genai": "^0.2.16",
     "@langchain/langgraph": "^0.4.2",
-    "langchain": "^0.3.30"
+    "@langchain/langgraph-checkpoint-sqlite": "^0.2.0",
+    "langchain": "^0.3.30",
+    "uuid": "^11.1.0"
   }
 }

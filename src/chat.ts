@@ -6,23 +6,48 @@ interface ChatMessage {
     timestamp: Date;
 }
 
+interface ChatSession {
+    id: string;
+    name: string;
+    createdAt: Date;
+    lastMessageAt: Date;
+}
+
 class ChatApp {
     private isApiKeySet = false;
     private isLoading = false;
     private chatMessages: ChatMessage[] = [];
+    private currentSession: ChatSession | null = null;
+    private sessions: ChatSession[] = [];
+    private confirmCallback: ((result: boolean) => void) | null = null;
 
     private elements = {
         apiKeySection: document.getElementById('apiKeySection') as HTMLDivElement,
         apiKeyInput: document.getElementById('apiKeyInput') as HTMLInputElement,
         setApiKeyBtn: document.getElementById('setApiKeyBtn') as HTMLButtonElement,
         cancelApiKeyBtn: document.getElementById('cancelApiKeyBtn') as HTMLButtonElement,
+        sessionSection: document.getElementById('sessionSection') as HTMLDivElement,
+        sessionSelect: document.getElementById('sessionSelect') as HTMLSelectElement,
+        newSessionBtn: document.getElementById('newSessionBtn') as HTMLButtonElement,
+        deleteSessionBtn: document.getElementById('deleteSessionBtn') as HTMLButtonElement,
         status: document.getElementById('status') as HTMLDivElement,
         chatMessagesContainer: document.getElementById('chatMessages') as HTMLDivElement,
         chatInput: document.getElementById('chatInput') as HTMLTextAreaElement,
         sendBtn: document.getElementById('sendBtn') as HTMLButtonElement,
         sendBtnText: document.getElementById('sendBtnText') as HTMLSpanElement,
         sendBtnLoading: document.getElementById('sendBtnLoading') as HTMLSpanElement,
-        clearHistoryBtn: document.getElementById('clearHistoryBtn') as HTMLButtonElement
+        clearHistoryBtn: document.getElementById('clearHistoryBtn') as HTMLButtonElement,
+        // モーダル要素
+        sessionNameModal: document.getElementById('sessionNameModal') as HTMLDivElement,
+        sessionNameInput: document.getElementById('sessionNameInput') as HTMLInputElement,
+        confirmSessionBtn: document.getElementById('confirmSessionBtn') as HTMLButtonElement,
+        cancelSessionBtn: document.getElementById('cancelSessionBtn') as HTMLButtonElement,
+        // 確認ダイアログ要素
+        confirmModal: document.getElementById('confirmModal') as HTMLDivElement,
+        confirmTitle: document.getElementById('confirmTitle') as HTMLHeadingElement,
+        confirmMessage: document.getElementById('confirmMessage') as HTMLParagraphElement,
+        confirmOkBtn: document.getElementById('confirmOkBtn') as HTMLButtonElement,
+        confirmCancelBtn: document.getElementById('confirmCancelBtn') as HTMLButtonElement
     };
 
     constructor() {
@@ -45,6 +70,11 @@ class ChatApp {
             }
         });
 
+        // セッション管理
+        this.elements.sessionSelect.addEventListener('change', () => this.handleSessionSwitch());
+        this.elements.newSessionBtn.addEventListener('click', () => this.handleNewSession());
+        this.elements.deleteSessionBtn.addEventListener('click', () => this.handleDeleteSession());
+
         // チャット送信ボタン
         this.elements.sendBtn.addEventListener('click', () => this.handleSendMessage());
 
@@ -61,6 +91,37 @@ class ChatApp {
 
         // 会話履歴クリアボタン
         this.elements.clearHistoryBtn.addEventListener('click', () => this.handleClearHistory());
+
+        // モーダル関連
+        this.elements.confirmSessionBtn.addEventListener('click', () => this.handleConfirmNewSession());
+        this.elements.cancelSessionBtn.addEventListener('click', () => this.hideSessionNameModal());
+
+        // モーダル外をクリックして閉じる
+        this.elements.sessionNameModal.addEventListener('click', (e) => {
+            if (e.target === this.elements.sessionNameModal) {
+                this.hideSessionNameModal();
+            }
+        });
+
+        // セッション名入力でEnterキー
+        this.elements.sessionNameInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') {
+                this.handleConfirmNewSession();
+            } else if (e.key === 'Escape') {
+                this.hideSessionNameModal();
+            }
+        });
+
+        // 確認ダイアログ関連
+        this.elements.confirmOkBtn.addEventListener('click', () => this.handleConfirmDialog(true));
+        this.elements.confirmCancelBtn.addEventListener('click', () => this.handleConfirmDialog(false));
+
+        // 確認モーダル外をクリックして閉じる
+        this.elements.confirmModal.addEventListener('click', (e) => {
+            if (e.target === this.elements.confirmModal) {
+                this.handleConfirmDialog(false);
+            }
+        });
     }
 
     private async handleSetApiKey(): Promise<void> {
@@ -79,22 +140,19 @@ class ChatApp {
 
             if (success) {
                 this.isApiKeySet = true;
-                this.showStatus('✅ 接続完了！チャットを開始できます', 'connected');
+                this.showStatus('✅ 接続完了！セッションを作成してください', 'connected');
                 this.elements.apiKeySection.classList.add('hidden');
-                this.elements.chatInput.disabled = false;
-                this.elements.sendBtn.disabled = false;
-                this.elements.clearHistoryBtn.disabled = false;
-                this.elements.chatInput.focus();
+                this.elements.sessionSection.classList.remove('hidden');
+
+                // セッション一覧をロード
+                await this.loadSessions();
 
                 // ウェルカムメッセージを追加
                 this.addMessage({
                     type: 'ai',
-                    content: 'API キーが正常に設定されました！何でもお聞きください。😊\n\n💡 会話履歴機能が有効になっており、AIは過去の会話を記憶しています。',
+                    content: 'API キーが正常に設定されました！新しいセッションを作成して会話を開始してください。😊\n\n💡 複数のセッションを作成して、異なる話題で会話を管理できます。',
                     timestamp: new Date()
                 });
-
-                // 既存の会話履歴があれば復元
-                this.restoreConversationHistory();
             } else {
                 this.showStatus('❌ API キーの設定に失敗しました', 'error');
             }
@@ -107,7 +165,12 @@ class ChatApp {
     }
 
     private async handleSendMessage(): Promise<void> {
-        if (!this.isApiKeySet || this.isLoading) return;
+        if (!this.isApiKeySet || this.isLoading || !this.currentSession) {
+            if (!this.currentSession) {
+                this.showStatus('❌ セッションを選択してください', 'error');
+            }
+            return;
+        }
 
         const messageText = this.elements.chatInput.value.trim();
         if (!messageText) return;
@@ -175,9 +238,10 @@ class ChatApp {
 
     private setLoading(loading: boolean): void {
         this.isLoading = loading;
-        this.elements.sendBtn.disabled = loading || !this.isApiKeySet;
-        this.elements.chatInput.disabled = loading;
-        this.elements.clearHistoryBtn.disabled = loading || !this.isApiKeySet;
+        const hasSession = !!this.currentSession;
+        this.elements.sendBtn.disabled = loading || !this.isApiKeySet || !hasSession;
+        this.elements.chatInput.disabled = loading || !hasSession;
+        this.elements.clearHistoryBtn.disabled = loading || !this.isApiKeySet || !hasSession;
 
         if (loading) {
             this.elements.sendBtnText.style.display = 'none';
@@ -206,54 +270,26 @@ class ChatApp {
     }
 
     private async restoreConversationHistory(): Promise<void> {
-        try {
-            const history = await (window as any).electronAPI.getConversationHistory();
-            
-            if (history && history.length > 0) {
-                // 既存のウェルカムメッセージを削除（最新のもの）
-                const messages = this.elements.chatMessagesContainer.children;
-                if (messages.length > 0) {
-                    const lastMessage = messages[messages.length - 1];
-                    if (lastMessage.classList.contains('ai') && lastMessage.textContent?.includes('API キーが正常に設定されました')) {
-                        lastMessage.remove();
-                        this.chatMessages.pop(); // 配列からも削除
-                    }
-                }
-
-                // 履歴からメッセージを復元
-                history.forEach((msg: any) => {
-                    this.addMessage({
-                        type: msg.type,
-                        content: msg.content,
-                        timestamp: new Date(msg.timestamp)
-                    });
-                });
-
-                // 復元完了メッセージを追加
-                this.addMessage({
-                    type: 'ai',
-                    content: '📜 会話履歴を復元しました。前回の続きから会話を開始できます。',
-                    timestamp: new Date()
-                });
-            }
-        } catch (error) {
-            console.error('Failed to restore conversation history:', error);
-        }
+        // このメソッドは新しいセッション管理システムで削除されました
+        // loadConversationHistory()を使用してください
     }
 
     private async handleClearHistory(): Promise<void> {
-        if (!this.isApiKeySet) return;
+        if (!this.isApiKeySet || !this.currentSession) return;
 
-        const confirmed = confirm('会話履歴をクリアしてもよろしいですか？この操作は取り消せません。');
+        const confirmed = await this.showConfirmDialog(
+            '会話履歴クリア',
+            '現在のセッションの会話履歴をクリアしてもよろしいですか？この操作は取り消せません。'
+        );
+
         if (!confirmed) return;
 
         try {
             await (window as any).electronAPI.clearConversation();
-            
+
             // UI上の会話履歴もクリア
-            this.chatMessages = [];
-            this.elements.chatMessagesContainer.innerHTML = '';
-            
+            this.clearMessages();
+
             // 成功メッセージを表示
             this.addMessage({
                 type: 'ai',
@@ -274,6 +310,170 @@ class ChatApp {
         this.elements.chatInput.disabled = !this.isApiKeySet;
         this.elements.sendBtn.disabled = !this.isApiKeySet;
         this.elements.clearHistoryBtn.disabled = !this.isApiKeySet;
+    }
+
+    // セッション管理メソッド
+    private async loadSessions(): Promise<void> {
+        try {
+            this.sessions = await (window as any).electronAPI.getSessions();
+            this.updateSessionSelect();
+        } catch (error) {
+            console.error('Load sessions error:', error);
+        }
+    }
+
+    private updateSessionSelect(): void {
+        // セッション選択肢をクリア
+        this.elements.sessionSelect.innerHTML = '<option value="">セッションを選択...</option>';
+
+        // 各セッションを追加
+        this.sessions.forEach(session => {
+            const option = document.createElement('option');
+            option.value = session.id;
+            option.textContent = session.name;
+            if (this.currentSession && this.currentSession.id === session.id) {
+                option.selected = true;
+            }
+            this.elements.sessionSelect.appendChild(option);
+        });
+
+        // UI状態を更新
+        this.updateUIState();
+    }
+
+    private async handleSessionSwitch(): Promise<void> {
+        const selectedSessionId = this.elements.sessionSelect.value;
+
+        if (!selectedSessionId) {
+            this.currentSession = null;
+            this.clearMessages();
+            this.updateUIState();
+            return;
+        }
+
+        try {
+            const success = await (window as any).electronAPI.switchSession(selectedSessionId);
+            if (success) {
+                this.currentSession = this.sessions.find(s => s.id === selectedSessionId) || null;
+                await this.loadConversationHistory();
+                this.updateUIState();
+                this.showStatus(`✅ セッション "${this.currentSession?.name}" に切り替えました`, 'connected');
+            }
+        } catch (error) {
+            console.error('Session switch error:', error);
+            this.showStatus('❌ セッションの切り替えに失敗しました', 'error');
+        }
+    }
+
+    private async handleNewSession(): Promise<void> {
+        this.showSessionNameModal();
+    }
+
+    private showSessionNameModal(): void {
+        this.elements.sessionNameInput.value = '';
+        this.elements.sessionNameModal.classList.add('show');
+        this.elements.sessionNameInput.focus();
+    }
+
+    private hideSessionNameModal(): void {
+        this.elements.sessionNameModal.classList.remove('show');
+    }
+
+    private async handleConfirmNewSession(): Promise<void> {
+        const sessionName = this.elements.sessionNameInput.value.trim() || undefined;
+
+        this.hideSessionNameModal();
+
+        try {
+            const newSession = await (window as any).electronAPI.createSession(sessionName);
+            this.currentSession = newSession;
+            this.sessions.push(newSession);
+            this.updateSessionSelect();
+            this.clearMessages();
+            this.showStatus(`✅ 新しいセッション "${newSession.name}" を作成しました`, 'connected');
+        } catch (error) {
+            console.error('New session error:', error);
+            this.showStatus('❌ セッションの作成に失敗しました', 'error');
+        }
+    }
+
+    private async handleDeleteSession(): Promise<void> {
+        if (!this.currentSession) {
+            this.showStatus('❌ 削除するセッションを選択してください', 'error');
+            return;
+        }
+
+        const confirmed = await this.showConfirmDialog(
+            'セッション削除',
+            `セッション "${this.currentSession.name}" を削除しますか？この操作は取り消せません。`
+        );
+
+        if (!confirmed) return;
+
+        try {
+            const success = await (window as any).electronAPI.deleteSession(this.currentSession.id);
+            if (success) {
+                // セッション一覧から削除
+                this.sessions = this.sessions.filter(s => s.id !== this.currentSession!.id);
+                this.currentSession = null;
+                this.updateSessionSelect();
+                this.clearMessages();
+                this.showStatus('✅ セッションを削除しました', 'connected');
+            }
+        } catch (error) {
+            console.error('Delete session error:', error);
+            this.showStatus('❌ セッションの削除に失敗しました', 'error');
+        }
+    }
+
+    private clearMessages(): void {
+        this.chatMessages = [];
+        this.elements.chatMessagesContainer.innerHTML = '';
+    }
+
+    private updateUIState(): void {
+        const hasSession = !!this.currentSession;
+        this.elements.chatInput.disabled = !hasSession || this.isLoading;
+        this.elements.sendBtn.disabled = !hasSession || this.isLoading;
+        this.elements.clearHistoryBtn.disabled = !hasSession || this.isLoading;
+        this.elements.deleteSessionBtn.disabled = !hasSession;
+    }
+
+    private async loadConversationHistory(): Promise<void> {
+        if (!this.currentSession) return;
+
+        try {
+            const history = await (window as any).electronAPI.getConversationHistory(this.currentSession.id);
+            this.clearMessages();
+
+            history.forEach((msg: any) => {
+                this.addMessage({
+                    type: msg.type,
+                    content: msg.content,
+                    timestamp: new Date(msg.timestamp)
+                });
+            });
+        } catch (error) {
+            console.error('Load conversation history error:', error);
+        }
+    }
+
+    // 確認ダイアログ関連メソッド
+    private showConfirmDialog(title: string, message: string): Promise<boolean> {
+        return new Promise((resolve) => {
+            this.confirmCallback = resolve;
+            this.elements.confirmTitle.textContent = title;
+            this.elements.confirmMessage.textContent = message;
+            this.elements.confirmModal.classList.add('show');
+        });
+    }
+
+    private handleConfirmDialog(result: boolean): void {
+        this.elements.confirmModal.classList.remove('show');
+        if (this.confirmCallback) {
+            this.confirmCallback(result);
+            this.confirmCallback = null;
+        }
     }
 }
 

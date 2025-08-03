@@ -1,8 +1,10 @@
 import { AIMessage, HumanMessage } from "@langchain/core/messages";
 import { ChatGoogleGenerativeAI } from '@langchain/google-genai';
 import { MessagesAnnotation, StateGraph } from "@langchain/langgraph";
+import { SqliteSaver } from "@langchain/langgraph-checkpoint-sqlite";
 import { app, BrowserWindow, ipcMain, IpcMainInvokeEvent } from 'electron';
 import * as path from 'path';
+import { v4 as uuidv4 } from 'uuid';
 
 // ウィンドウの参照を保持
 let mainWindow: BrowserWindow | null = null;
@@ -13,8 +15,19 @@ let chatModel: ChatGoogleGenerativeAI | null = null;
 // LangGraph workflow
 let workflow: any = null;
 
-// 会話履歴を保持
-let conversationHistory: Array<HumanMessage | AIMessage> = [];
+// SQLite checkpointer for conversation persistence
+let checkpointer: SqliteSaver | null = null;
+
+// 現在のセッションID
+let currentSessionId: string | null = null;
+
+// セッション管理用の型定義
+interface ChatSession {
+  id: string;
+  name: string;
+  createdAt: Date;
+  lastMessageAt: Date;
+}
 
 // チャット状態の型定義
 interface ChatState {
@@ -22,12 +35,16 @@ interface ChatState {
 }
 
 // APIキーを設定してLangGraphワークフローを初期化
-const initializeAI = (apiKey: string) => {
+const initializeAI = async (apiKey: string) => {
   try {
     chatModel = new ChatGoogleGenerativeAI({
       model: "gemini-1.5-flash",
       apiKey: apiKey
     });
+
+    // SqliteSaverを初期化（アプリのデータディレクトリを使用）
+    const dbPath = path.join(app.getPath('userData'), 'conversations.db');
+    checkpointer = SqliteSaver.fromConnString(dbPath);
 
     // LangGraphワークフローを作成
     workflow = createChatWorkflow();
@@ -56,13 +73,13 @@ const createChatWorkflow = () => {
     }
   };
 
-  // StateGraphを作成
+  // StateGraphを作成（checkpointerを設定）
   const graph = new StateGraph(MessagesAnnotation)
     .addNode("chat", chatNode)
     .addEdge("__start__", "chat")
     .addEdge("chat", "__end__");
 
-  return graph.compile();
+  return graph.compile({ checkpointer: checkpointer! });
 };
 
 function createWindow(): void {
@@ -107,7 +124,38 @@ function createWindow(): void {
 const setupIPCHandlers = () => {
   // APIキーを設定するハンドラー
   ipcMain.handle('set-api-key', async (_event: IpcMainInvokeEvent, apiKey: string) => {
-    return initializeAI(apiKey);
+    return await initializeAI(apiKey);
+  });
+
+  // 新しいセッションを作成するハンドラー
+  ipcMain.handle('create-session', async (_event: IpcMainInvokeEvent, sessionName?: string) => {
+    try {
+      const sessionId = uuidv4();
+      currentSessionId = sessionId;
+
+      const session: ChatSession = {
+        id: sessionId,
+        name: sessionName || `新しい会話 ${new Date().toLocaleString()}`,
+        createdAt: new Date(),
+        lastMessageAt: new Date()
+      };
+
+      return session;
+    } catch (error) {
+      console.error('Session creation error:', error);
+      throw error;
+    }
+  });
+
+  // セッションを切り替えるハンドラー
+  ipcMain.handle('switch-session', async (_event: IpcMainInvokeEvent, sessionId: string) => {
+    try {
+      currentSessionId = sessionId;
+      return true;
+    } catch (error) {
+      console.error('Session switch error:', error);
+      throw error;
+    }
   });
 
   // メッセージを送信するハンドラー
@@ -116,25 +164,23 @@ const setupIPCHandlers = () => {
       throw new Error('AI workflow not initialized. Please set API key first.');
     }
 
+    if (!currentSessionId) {
+      throw new Error('No active session. Please create or select a session first.');
+    }
+
     try {
       // HumanMessageを作成
       const humanMessage = new HumanMessage({ content: message });
-      
-      // 会話履歴に追加
-      conversationHistory.push(humanMessage);
 
-      // LangGraphワークフローを実行（履歴を含む）
-      const result = await workflow.invoke({
-        messages: [...conversationHistory]
-      });
+      // LangGraphワークフローを実行（SessionIDをthreadIdとして使用）
+      const result = await workflow.invoke(
+        { messages: [humanMessage] },
+        { configurable: { thread_id: currentSessionId } }
+      );
 
       // 最後のメッセージ（AIの応答）を取得
       const lastMessage = result.messages[result.messages.length - 1];
-      
-      // AIの応答も履歴に追加
-      const aiMessage = new AIMessage({ content: lastMessage.content });
-      conversationHistory.push(aiMessage);
-      
+
       return lastMessage.content;
     } catch (error) {
       console.error('AI chat error:', error);
@@ -142,19 +188,104 @@ const setupIPCHandlers = () => {
     }
   });
 
-  // 会話履歴をクリアするハンドラー
-  ipcMain.handle('clear-conversation', async (_event: IpcMainInvokeEvent) => {
-    conversationHistory = [];
-    return true;
+  // 会話履歴を取得するハンドラー
+  ipcMain.handle('get-conversation-history', async (_event: IpcMainInvokeEvent, sessionId?: string) => {
+    if (!workflow || !checkpointer) {
+      return [];
+    }
+
+    try {
+      const threadId = sessionId || currentSessionId;
+      if (!threadId) {
+        return [];
+      }
+
+      // checkpointerから会話履歴を取得
+      const checkpoint = await checkpointer.get({ configurable: { thread_id: threadId } });
+
+      if (checkpoint && checkpoint.channel_values && checkpoint.channel_values.messages) {
+        const messages = checkpoint.channel_values.messages;
+        if (Array.isArray(messages)) {
+          return messages.map((msg: any) => ({
+            type: msg._getType() === 'human' ? 'user' : 'ai',
+            content: msg.content,
+            timestamp: new Date() // 実際のタイムスタンプの実装は追加できます
+          }));
+        }
+      }
+
+      return [];
+    } catch (error) {
+      console.error('Get conversation history error:', error);
+      return [];
+    }
   });
 
-  // 会話履歴を取得するハンドラー
-  ipcMain.handle('get-conversation-history', async (_event: IpcMainInvokeEvent) => {
-    return conversationHistory.map(msg => ({
-      type: msg instanceof HumanMessage ? 'user' : 'ai',
-      content: msg.content,
-      timestamp: new Date() // 実際の実装では、メッセージにタイムスタンプを含める必要があります
-    }));
+  // セッション一覧を取得するハンドラー
+  ipcMain.handle('get-sessions', async (_event: IpcMainInvokeEvent) => {
+    if (!checkpointer) {
+      return [];
+    }
+
+    try {
+      // checkpointerからすべてのセッションを取得
+      const sessions: ChatSession[] = [];
+      const checkpoints = await checkpointer.list({});
+
+      const seenThreadIds = new Set<string>();
+
+      for await (const checkpoint of checkpoints) {
+        if (checkpoint.config && checkpoint.config.configurable && checkpoint.config.configurable.thread_id) {
+          const sessionId = checkpoint.config.configurable.thread_id;
+
+          // 重複を避ける
+          if (seenThreadIds.has(sessionId)) {
+            continue;
+          }
+          seenThreadIds.add(sessionId);
+
+          // セッション情報を構築
+          const session: ChatSession = {
+            id: sessionId,
+            name: `会話 ${sessionId.substring(0, 8)}`,
+            createdAt: new Date(),
+            lastMessageAt: new Date()
+          };
+
+          sessions.push(session);
+        }
+      }
+
+      return sessions;
+    } catch (error) {
+      console.error('Get sessions error:', error);
+      return [];
+    }
+  });
+
+  // セッションを削除するハンドラー
+  ipcMain.handle('delete-session', async (_event: IpcMainInvokeEvent, sessionId: string) => {
+    try {
+      // 現在のセッションが削除された場合はリセット
+      if (currentSessionId === sessionId) {
+        currentSessionId = null;
+      }
+
+      // 新しいセッションを作成してもらう
+      return true;
+    } catch (error) {
+      console.error('Delete session error:', error);
+      return false;
+    }
+  });
+
+  // 会話履歴をクリアするハンドラー（レガシー互換性のため）
+  ipcMain.handle('clear-conversation', async (_event: IpcMainInvokeEvent) => {
+    if (!currentSessionId) {
+      return true;
+    }
+
+    return await ipcMain.emit('delete-session', _event, currentSessionId);
   });
 
   // バージョン情報を取得するハンドラー

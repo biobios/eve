@@ -1,13 +1,27 @@
 // プリロードスクリプト - フロントエンドにセキュアなAPIを提供
 import { contextBridge, ipcRenderer } from 'electron';
 
+// セッション関連の型定義
+interface ChatSession {
+    id: string;
+    name: string;
+    createdAt: Date;
+    lastMessageAt: Date;
+}
+
 // フロントエンドに公開するAPIの型定義
 interface ElectronAPI {
     // AI チャット関連
     setApiKey: (apiKey: string) => Promise<boolean>;
     sendMessage: (message: string) => Promise<string>;
     clearConversation: () => Promise<boolean>;
-    getConversationHistory: () => Promise<Array<{type: 'user' | 'ai', content: string, timestamp: Date}>>;
+    getConversationHistory: (sessionId?: string) => Promise<Array<{ type: 'user' | 'ai', content: string, timestamp: Date }>>;
+
+    // セッション管理
+    createSession: (sessionName?: string) => Promise<ChatSession>;
+    switchSession: (sessionId: string) => Promise<boolean>;
+    getSessions: () => Promise<ChatSession[]>;
+    deleteSession: (sessionId: string) => Promise<boolean>;
 
     // その他のユーティリティ
     getVersion: () => Promise<string>;
@@ -25,7 +39,13 @@ const electronAPI: ElectronAPI = {
     clearConversation: () => ipcRenderer.invoke('clear-conversation'),
 
     // 会話履歴を取得
-    getConversationHistory: () => ipcRenderer.invoke('get-conversation-history'),
+    getConversationHistory: (sessionId?: string) => ipcRenderer.invoke('get-conversation-history', sessionId),
+
+    // セッション管理
+    createSession: (sessionName?: string) => ipcRenderer.invoke('create-session', sessionName),
+    switchSession: (sessionId: string) => ipcRenderer.invoke('switch-session', sessionId),
+    getSessions: () => ipcRenderer.invoke('get-sessions'),
+    deleteSession: (sessionId: string) => ipcRenderer.invoke('delete-session', sessionId),
 
     // バージョン情報を取得
     getVersion: () => ipcRenderer.invoke('get-version')
