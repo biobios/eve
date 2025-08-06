@@ -12,7 +12,7 @@ eve/
 │   ├── main.js.map
 │   ├── renderer.js
 │   └── renderer.js.map
-├── index.html             # HTMLファイル
+├── chat.html              # HTMLファイル
 ├── tsconfig.json          # TypeScript設定
 ├── package.json           # プロジェクト設定
 └── .vscode/              # VS Code設定

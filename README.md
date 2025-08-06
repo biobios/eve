@@ -75,7 +75,7 @@ eve/
 │   ├── main.ts        # メインプロセス（TypeScript）
 │   └── renderer.ts    # レンダラープロセス（TypeScript）
 ├── dist/              # コンパイル後のJavaScript（自動生成）
-├── index.html         # レンダラープロセス（UI）
+├── chat.html          # レンダラープロセス（UI）
 ├── tsconfig.json      # TypeScript設定
 ├── package.json       # プロジェクト設定
 ├── assets/            # 画像、アイコンなどのリソース
