@@ -92,7 +92,7 @@ export class WindowManager {
         if (this.setupWindow) {
             this.setupWindow.close();
         }
-        this.createMainWindow();
+        // setup windowのclosedイベントでcreateMainWindowが呼ばれるため、ここでは呼ばない
     }
 
     /**
