@@ -4,6 +4,7 @@ import { ApiKeyStorage, DataEncryption, EncryptionKeyManager } from './crypto-ut
 import { DatabaseManager } from './database-manager';
 import { IPCHandlers } from './ipc-handlers';
 import { SessionManager } from './session-manager';
+import { SettingsManager } from './settings-manager';
 import { WindowManager } from './window-manager';
 
 // グローバルインスタンス
@@ -13,6 +14,7 @@ let aiManager: AIManager | null = null;
 let sessionManager: SessionManager | null = null;
 let ipcHandlers: IPCHandlers | null = null;
 let windowManager: WindowManager | null = null;
+let settingsManager: SettingsManager | null = null;
 
 // データベースシステムを初期化
 const initializeDatabaseSystem = async (): Promise<void> => {
@@ -52,16 +54,20 @@ const initializeApiKeyStorage = async (): Promise<void> => {
 };
 
 // アプリケーションのコンポーネントを初期化
-const initializeComponents = (): void => {
+const initializeComponents = async (): Promise<void> => {
   if (!apiKeyStorage) {
     throw new Error('API key storage not initialized');
   }
 
+  // 設定マネージャーを初期化
+  settingsManager = SettingsManager.getInstance();
+  await settingsManager.initialize();
+
   // 各コンポーネントを初期化
   aiManager = new AIManager(apiKeyStorage);
   sessionManager = new SessionManager();
-  ipcHandlers = new IPCHandlers(aiManager, sessionManager, apiKeyStorage);
   windowManager = new WindowManager(aiManager);
+  ipcHandlers = new IPCHandlers(aiManager, sessionManager, apiKeyStorage, windowManager);
 
   // IPCハンドラーを設定
   ipcHandlers.setupHandlers();
@@ -79,10 +85,10 @@ app.whenReady().then(async () => {
   await initializeApiKeyStorage();
 
   // コンポーネントを初期化
-  initializeComponents();
+  await initializeComponents();
 
   // メインウィンドウを作成
-  windowManager?.createWindow();
+  await windowManager?.createWindow();
 
   console.log('Electron app is ready');
   console.log('Node version:', process.versions.node);
@@ -112,6 +118,9 @@ app.on('before-quit', async (event) => {
   try {
     if (databaseManager) {
       await databaseManager.shutdown();
+    }
+    if (settingsManager) {
+      await settingsManager.shutdown();
     }
   } catch (error) {
     console.error('Error during database shutdown:', error);

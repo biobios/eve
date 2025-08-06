@@ -1,0 +1,397 @@
+<!DOCTYPE html>
+<html lang="ja">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Eve - 初期設定</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #333;
+        }
+
+        .setup-container {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(20px);
+            border-radius: 20px;
+            padding: 40px;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            max-width: 500px;
+            width: 90%;
+            max-height: 90vh;
+            overflow-y: auto;
+        }
+
+        .setup-header {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+
+        .setup-header h1 {
+            color: #4a5568;
+            font-size: 32px;
+            font-weight: 600;
+            margin-bottom: 10px;
+        }
+
+        .setup-header p {
+            color: #718096;
+            font-size: 16px;
+            line-height: 1.6;
+        }
+
+        .form-group {
+            margin-bottom: 25px;
+        }
+
+        .form-label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 500;
+            color: #4a5568;
+            font-size: 14px;
+        }
+
+        .form-input {
+            width: 100%;
+            padding: 12px 16px;
+            border: 2px solid #e2e8f0;
+            border-radius: 12px;
+            font-size: 16px;
+            background: rgba(255, 255, 255, 0.9);
+            transition: all 0.3s ease;
+        }
+
+        .form-input:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+            background: white;
+        }
+
+        .form-select {
+            width: 100%;
+            padding: 12px 16px;
+            border: 2px solid #e2e8f0;
+            border-radius: 12px;
+            font-size: 16px;
+            background: rgba(255, 255, 255, 0.9);
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .form-select:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+
+        .form-textarea {
+            width: 100%;
+            padding: 12px 16px;
+            border: 2px solid #e2e8f0;
+            border-radius: 12px;
+            font-size: 16px;
+            background: rgba(255, 255, 255, 0.9);
+            resize: vertical;
+            min-height: 80px;
+            transition: all 0.3s ease;
+            font-family: inherit;
+        }
+
+        .form-textarea:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+            background: white;
+        }
+
+        .setup-buttons {
+            display: flex;
+            gap: 15px;
+            margin-top: 30px;
+        }
+
+        .btn {
+            flex: 1;
+            padding: 14px 24px;
+            border: none;
+            border-radius: 12px;
+            font-size: 16px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px rgba(102, 126, 234, 0.3);
+        }
+
+        .btn-primary:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+            box-shadow: none;
+        }
+
+        .btn-secondary {
+            background: #e2e8f0;
+            color: #4a5568;
+        }
+
+        .btn-secondary:hover {
+            background: #cbd5e0;
+            transform: translateY(-2px);
+        }
+
+        .error-message {
+            background: #fed7d7;
+            color: #c53030;
+            padding: 12px 16px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            border: 1px solid #feb2b2;
+            font-size: 14px;
+        }
+
+        .success-message {
+            background: #c6f6d5;
+            color: #22543d;
+            padding: 12px 16px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            border: 1px solid #9ae6b4;
+            font-size: 14px;
+        }
+
+        .loading-spinner {
+            width: 20px;
+            height: 20px;
+            border: 2px solid rgba(255, 255, 255, 0.3);
+            border-top: 2px solid white;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            0% {
+                transform: rotate(0deg);
+            }
+
+            100% {
+                transform: rotate(360deg);
+            }
+        }
+
+        .help-text {
+            font-size: 12px;
+            color: #718096;
+            margin-top: 5px;
+            line-height: 1.4;
+        }
+
+        .step-indicator {
+            display: flex;
+            justify-content: center;
+            margin-bottom: 30px;
+            gap: 10px;
+        }
+
+        .step {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            background: #e2e8f0;
+            transition: all 0.3s ease;
+        }
+
+        .step.active {
+            background: #667eea;
+            transform: scale(1.2);
+        }
+
+        .step.completed {
+            background: #48bb78;
+        }
+
+        .api-key-info {
+            background: rgba(102, 126, 234, 0.1);
+            border: 1px solid rgba(102, 126, 234, 0.2);
+            border-radius: 8px;
+            padding: 12px;
+            margin-top: 8px;
+            font-size: 13px;
+            color: #4a5568;
+            line-height: 1.5;
+        }
+
+        .ai-model-grid {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 8px;
+            margin-top: 8px;
+        }
+
+        .ai-model-option {
+            padding: 12px;
+            border: 2px solid #e2e8f0;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            background: rgba(255, 255, 255, 0.5);
+        }
+
+        .ai-model-option:hover {
+            border-color: #667eea;
+            background: rgba(102, 126, 234, 0.1);
+        }
+
+        .ai-model-option.selected {
+            border-color: #667eea;
+            background: rgba(102, 126, 234, 0.1);
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+
+        .ai-model-name {
+            font-weight: 500;
+            color: #4a5568;
+            margin-bottom: 4px;
+        }
+
+        .ai-model-description {
+            font-size: 12px;
+            color: #718096;
+        }
+
+        @media (max-width: 480px) {
+            .setup-container {
+                padding: 30px 20px;
+                margin: 20px;
+            }
+
+            .setup-header h1 {
+                font-size: 28px;
+            }
+
+            .setup-buttons {
+                flex-direction: column;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <div class="setup-container">
+        <div class="setup-header">
+            <h1>Eveへようこそ</h1>
+            <p>AIアシスタントを使用するための初期設定を行います</p>
+        </div>
+
+        <div class="step-indicator">
+            <div class="step active" id="step1"></div>
+            <div class="step" id="step2"></div>
+            <div class="step" id="step3"></div>
+            <div class="step" id="step4"></div>
+        </div>
+
+        <div id="error-container"></div>
+        <div id="success-container"></div>
+
+        <form id="setup-form">
+            <!-- ステップ1: ユーザー名 -->
+            <div class="form-group" id="user-name-group">
+                <label for="userName" class="form-label">お名前</label>
+                <input type="text" id="userName" name="userName" class="form-input" placeholder="山田太郎" required>
+                <div class="help-text">AIが会話でお呼びする名前を入力してください</div>
+            </div>
+
+            <!-- ステップ2: AIサービス -->
+            <div class="form-group" id="ai-service-group" style="display: none;">
+                <label for="aiService" class="form-label">AIサービス</label>
+                <select id="aiService" name="aiService" class="form-select" required>
+                    <option value="">選択してください</option>
+                    <option value="gemini">Google Gemini</option>
+                </select>
+                <div class="help-text">使用するAIサービスを選択してください</div>
+            </div>
+
+            <!-- ステップ3: AIモデル -->
+            <div class="form-group" id="ai-model-group" style="display: none;">
+                <label class="form-label">AIモデル</label>
+                <div class="ai-model-grid">
+                    <div class="ai-model-option" data-model="gemini-2.0-flash">
+                        <div class="ai-model-name">Gemini 2.0 Flash</div>
+                        <div class="ai-model-description">最新モデル、高速で高性能</div>
+                    </div>
+                    <div class="ai-model-option" data-model="gemini-2.0-flash-lite">
+                        <div class="ai-model-name">Gemini 2.0 Flash Lite</div>
+                        <div class="ai-model-description">軽量版、効率的で高速</div>
+                    </div>
+                    <div class="ai-model-option" data-model="gemini-1.5-flash">
+                        <div class="ai-model-name">Gemini 1.5 Flash</div>
+                        <div class="ai-model-description">安定性重視、実証済み</div>
+                    </div>
+                    <div class="ai-model-option" data-model="gemini-2.5-flash-lite">
+                        <div class="ai-model-name">Gemini 2.5 Flash Lite</div>
+                        <div class="ai-model-description">バランス型、コスト効率良好</div>
+                    </div>
+                </div>
+                <input type="hidden" id="aiModel" name="aiModel" required>
+                <div class="help-text">使用するAIモデルを選択してください</div>
+            </div>
+
+            <!-- ステップ4: APIキー -->
+            <div class="form-group" id="api-key-group" style="display: none;">
+                <label for="apiKey" class="form-label">APIキー</label>
+                <textarea id="apiKey" name="apiKey" class="form-textarea" placeholder="AIzaSy..." required></textarea>
+                <div class="help-text">Google Gemini APIキーを入力してください</div>
+                <div class="api-key-info">
+                    <strong>APIキーの取得方法：</strong><br>
+                    1. <a href="https://aistudio.google.com/app/apikey" target="_blank">Google AI Studio</a>にアクセス<br>
+                    2. 「Create API Key」をクリック<br>
+                    3. 生成されたAPIキーをコピーして貼り付け
+                </div>
+            </div>
+
+            <div class="setup-buttons">
+                <button type="button" id="prev-btn" class="btn btn-secondary" style="display: none;">
+                    戻る
+                </button>
+                <button type="button" id="next-btn" class="btn btn-primary">
+                    次へ
+                </button>
+                <button type="submit" id="complete-btn" class="btn btn-primary" style="display: none;">
+                    <span id="complete-btn-text">設定を完了</span>
+                    <div id="complete-btn-spinner" class="loading-spinner" style="display: none;"></div>
+                </button>
+            </div>
+        </form>
+    </div>
+
+    <script src="./dist/initial-setup.js"></script>
+</body>
+
+</html>

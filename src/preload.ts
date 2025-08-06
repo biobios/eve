@@ -89,10 +89,3 @@ const electronAPI: ElectronAPI = {
 
 // contextBridge を使ってセキュアにAPIを公開
 contextBridge.exposeInMainWorld('electronAPI', electronAPI);
-
-// TypeScript用の型定義をグローバルに追加
-declare global {
-    interface Window {
-        electronAPI: ElectronAPI;
-    }
-}

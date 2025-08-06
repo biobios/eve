@@ -9,16 +9,22 @@ import { ApiKeyStorage } from './crypto-utils';
 import { DatabaseManager } from './database-manager';
 import { SessionManager } from './session-manager';
 import { SessionInfo } from './session-storage';
+import { SettingsManager } from './settings-manager';
+import { WindowManager } from './window-manager';
 
 export class IPCHandlers {
     private aiManager: AIManager;
     private sessionManager: SessionManager;
     private apiKeyStorage: ApiKeyStorage;
+    private settingsManager: SettingsManager;
+    private windowManager: WindowManager | null = null;
 
-    constructor(aiManager: AIManager, sessionManager: SessionManager, apiKeyStorage: ApiKeyStorage) {
+    constructor(aiManager: AIManager, sessionManager: SessionManager, apiKeyStorage: ApiKeyStorage, windowManager?: WindowManager) {
         this.aiManager = aiManager;
         this.sessionManager = sessionManager;
         this.apiKeyStorage = apiKeyStorage;
+        this.settingsManager = SettingsManager.getInstance();
+        this.windowManager = windowManager || null;
     }
 
     /**
@@ -30,6 +36,7 @@ export class IPCHandlers {
         this.setupChatHandlers();
         this.setupUtilityHandlers();
         this.setupDatabaseHandlers();
+        this.setupInitialSetupHandlers();
     }
 
     /**
@@ -231,6 +238,55 @@ export class IPCHandlers {
                 return {
                     success: false,
                     results: {},
+                    error: error instanceof Error ? error.message : 'Unknown error'
+                };
+            }
+        });
+    }
+
+    /**
+     * 初期設定関連のハンドラーを設定
+     */
+    private setupInitialSetupHandlers(): void {
+        // 初期設定を保存
+        ipcMain.handle('save-initial-setup', async (_event: IpcMainInvokeEvent, config: {
+            userName: string;
+            aiService: string;
+            aiModel: string;
+            apiKey: string;
+        }) => {
+            try {
+                // APIキーを保存
+                const apiKeyId = await this.apiKeyStorage.saveApiKey(
+                    config.aiService,
+                    config.apiKey,
+                    config.aiModel,
+                    `${config.aiService} - ${config.aiModel}`
+                );
+
+                // 初期設定情報を保存
+                await this.settingsManager.saveInitialSetup({
+                    userName: config.userName,
+                    aiService: config.aiService,
+                    aiModel: config.aiModel,
+                    apiKeyId: apiKeyId
+                });
+
+                // 初期設定が完了したので、メインウィンドウを開く
+                if (this.windowManager) {
+                    setTimeout(() => {
+                        this.windowManager?.openMainWindowAfterSetup();
+                    }, 100);
+                }
+
+                return {
+                    success: true,
+                    apiKeyId: apiKeyId
+                };
+            } catch (error) {
+                console.error('Error saving initial setup:', error);
+                return {
+                    success: false,
                     error: error instanceof Error ? error.message : 'Unknown error'
                 };
             }

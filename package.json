@@ -49,6 +49,7 @@
     "files": [
       "dist/**/*",
       "chat.html",
+      "initial-setup.html",
       "package.json",
       "assets/**/*"
     ],

@@ -23,10 +23,10 @@ export class AIService {
         }
 
         try {
-            const savedApiKey = await this.apiKeyStorage.getApiKey('gemini');
-            if (savedApiKey) {
+            const savedApiKeyInfo = await this.apiKeyStorage.getApiKeyInfo('gemini');
+            if (savedApiKeyInfo) {
                 console.log('Found saved API key, initializing AI...');
-                return await this.initialize(savedApiKey);
+                return await this.initialize(savedApiKeyInfo.apiKey, false, savedApiKeyInfo.aiModel);
             }
             return false;
         } catch (error) {
@@ -38,16 +38,16 @@ export class AIService {
     /**
      * APIキーを設定してAIモデルを初期化
      */
-    public async initialize(apiKey: string, saveKey: boolean = false): Promise<boolean> {
+    public async initialize(apiKey: string, saveKey: boolean = false, model: string = "gemini-1.5-flash"): Promise<boolean> {
         try {
             this.chatModel = new ChatGoogleGenerativeAI({
-                model: "gemini-1.5-flash",
+                model: model,
                 apiKey: apiKey
             });
 
             // APIキーを保存する場合
             if (saveKey && this.apiKeyStorage) {
-                await this.apiKeyStorage.saveApiKey('gemini', apiKey);
+                await this.apiKeyStorage.saveApiKey('gemini', apiKey, model);
                 console.log('API key saved to storage');
             }
 

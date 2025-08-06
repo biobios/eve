@@ -8,16 +8,21 @@ import { AIService } from './ai-service';
 import { ConversationManager } from './conversation-manager';
 import { ApiKeyStorage } from './crypto-utils';
 import { SessionInfo, SessionStorage } from './session-storage';
+import { SettingsManager } from './settings-manager';
 
 export class AIManager {
     private aiService: AIService;
     private sessionStorage: SessionStorage;
     private conversationManager: ConversationManager;
+    private apiKeyStorage: ApiKeyStorage;
+    private settingsManager: SettingsManager;
 
     constructor(apiKeyStorage: ApiKeyStorage) {
+        this.apiKeyStorage = apiKeyStorage;
         this.aiService = new AIService(apiKeyStorage);
         this.sessionStorage = new SessionStorage();
         this.conversationManager = new ConversationManager(this.aiService, this.sessionStorage);
+        this.settingsManager = SettingsManager.getInstance();
     }
 
     /**
@@ -25,10 +30,29 @@ export class AIManager {
      */
     public async initializeFromStorage(): Promise<boolean> {
         try {
-            // AIサービスの初期化
-            const aiInitialized = await this.aiService.initializeFromStorage();
-            if (!aiInitialized) {
-                return false;
+            // 設定から現在の設定を取得
+            const config = await this.settingsManager.getCurrentConfig();
+
+            if (config.apiKeyId) {
+                // APIキーIDから情報を取得
+                const apiKeyInfo = await this.apiKeyStorage.getApiKeyById(config.apiKeyId);
+                if (apiKeyInfo) {
+                    // APIキーでAIサービスを初期化
+                    const aiInitialized = await this.aiService.initialize(apiKeyInfo.apiKey, false, apiKeyInfo.aiModel);
+                    if (!aiInitialized) {
+                        return false;
+                    }
+                } else {
+                    // 設定されたAPIキーIDが見つからない場合
+                    console.warn('Configured API key not found');
+                    return false;
+                }
+            } else {
+                // 従来の方法でAPIキーを取得
+                const aiInitialized = await this.aiService.initializeFromStorage();
+                if (!aiInitialized) {
+                    return false;
+                }
             }
 
             // セッションストレージの初期化

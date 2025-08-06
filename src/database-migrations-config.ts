@@ -116,6 +116,45 @@ export const apiKeyMigrations: Migration[] = [
                 ON api_keys(service_name);
             `);
         }
+    },
+    {
+        version: 4,
+        description: 'Add ai_model column to api_keys table',
+        up: (db) => {
+            db.exec(`
+                ALTER TABLE api_keys ADD COLUMN ai_model TEXT;
+            `);
+        },
+        down: (db) => {
+            // SQLiteでは列の削除が制限されているため、テーブルを再作成
+            db.exec(`
+                CREATE TABLE api_keys_backup AS 
+                SELECT id, service_name, encrypted_api_key, description, is_active, last_used_at, created_at, updated_at 
+                FROM api_keys;
+                
+                DROP TABLE api_keys;
+                
+                CREATE TABLE api_keys (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    service_name TEXT UNIQUE NOT NULL,
+                    encrypted_api_key TEXT NOT NULL,
+                    description TEXT,
+                    is_active BOOLEAN DEFAULT 1,
+                    last_used_at DATETIME,
+                    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+                );
+                
+                INSERT INTO api_keys (id, service_name, encrypted_api_key, description, is_active, last_used_at, created_at, updated_at)
+                SELECT id, service_name, encrypted_api_key, description, is_active, last_used_at, created_at, updated_at 
+                FROM api_keys_backup;
+                
+                DROP TABLE api_keys_backup;
+                
+                CREATE INDEX IF NOT EXISTS idx_api_keys_service_name 
+                ON api_keys(service_name);
+            `);
+        }
     }
 ];
 
@@ -195,6 +234,63 @@ export const conversationMigrations: Migration[] = [
 ];
 
 /**
+ * 設定データベースのマイグレーション定義
+ */
+export const settingsMigrations: Migration[] = [
+    {
+        version: 1,
+        description: 'Create user_settings table',
+        up: (db) => {
+            db.exec(`
+                CREATE TABLE IF NOT EXISTS user_settings (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    setting_key TEXT UNIQUE NOT NULL,
+                    setting_value TEXT NOT NULL,
+                    setting_type TEXT DEFAULT 'string',
+                    description TEXT,
+                    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+                )
+            `);
+        },
+        down: (db) => {
+            db.exec(`DROP TABLE IF EXISTS user_settings`);
+        }
+    },
+    {
+        version: 2,
+        description: 'Add index on setting_key for user_settings',
+        up: (db) => {
+            db.exec(`
+                CREATE INDEX IF NOT EXISTS idx_user_settings_setting_key 
+                ON user_settings(setting_key)
+            `);
+        },
+        down: (db) => {
+            db.exec(`DROP INDEX IF EXISTS idx_user_settings_setting_key`);
+        }
+    },
+    {
+        version: 3,
+        description: 'Create initial_setup table',
+        up: (db) => {
+            db.exec(`
+                CREATE TABLE IF NOT EXISTS initial_setup (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    is_completed BOOLEAN DEFAULT 0,
+                    completed_at DATETIME,
+                    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+                )
+            `);
+        },
+        down: (db) => {
+            db.exec(`DROP TABLE IF EXISTS initial_setup`);
+        }
+    }
+];
+
+/**
  * データベース設定を取得
  */
 export function getDatabaseConfigs(): DatabaseConfig[] {
@@ -215,6 +311,11 @@ export function getDatabaseConfigs(): DatabaseConfig[] {
             name: 'conversations',
             path: path.join(userDataPath, 'conversations.db'),
             migrations: conversationMigrations
+        },
+        {
+            name: 'settings',
+            path: path.join(userDataPath, 'settings.db'),
+            migrations: settingsMigrations
         }
     ];
 }
