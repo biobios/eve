@@ -267,8 +267,6 @@ export class IPCHandlers {
                 // 初期設定情報を保存
                 await this.settingsManager.saveInitialSetup({
                     userName: config.userName,
-                    aiService: config.aiService,
-                    aiModel: config.aiModel,
                     apiKeyId: apiKeyId
                 });
 

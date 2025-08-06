@@ -19,8 +19,6 @@ export interface UserSetting {
 
 export interface InitialSetupConfig {
     userName: string;
-    aiService: string;
-    aiModel: string;
     apiKeyId: number;
 }
 
@@ -212,12 +210,6 @@ export class SettingsManager {
             // ユーザー名を保存
             await this.setSetting('user_name', config.userName, 'string', 'ユーザーの名前');
 
-            // AIサービスを保存
-            await this.setSetting('ai_service', config.aiService, 'string', '使用するAIサービス');
-
-            // AIモデルを保存
-            await this.setSetting('ai_model', config.aiModel, 'string', '使用するAIモデル');
-
             // APIキーIDを保存
             await this.setSetting('api_key_id', config.apiKeyId, 'number', '使用するAPIキーのID');
 
@@ -237,14 +229,10 @@ export class SettingsManager {
     public async getCurrentConfig(): Promise<Partial<InitialSetupConfig>> {
         try {
             const userName = await this.getSetting('user_name');
-            const aiService = await this.getSetting('ai_service');
-            const aiModel = await this.getSetting('ai_model');
             const apiKeyId = await this.getSetting<number>('api_key_id');
 
             return {
                 userName,
-                aiService,
-                aiModel,
                 apiKeyId
             };
         } catch (error) {
