@@ -73,10 +73,10 @@ export class AIManager {
     /**
      * APIキーを設定してLangGraphワークフローを初期化
      */
-    public async initialize(apiKey: string, saveKey: boolean = false): Promise<boolean> {
+    public async initialize(apiKey: string, saveKey: boolean = false, model?: string): Promise<boolean> {
         try {
             // AIサービスの初期化
-            const aiInitialized = await this.aiService.initialize(apiKey, saveKey);
+            const aiInitialized = await this.aiService.initialize(apiKey, saveKey, model);
             if (!aiInitialized) {
                 return false;
             }

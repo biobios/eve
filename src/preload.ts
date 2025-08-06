@@ -22,6 +22,23 @@ interface ElectronAPI {
     deleteSavedApiKey: () => Promise<boolean>;
     isAiInitialized: () => Promise<boolean>;
 
+    // 新しいAPIキー管理機能
+    getAllApiKeys: (serviceName?: string) => Promise<Array<{
+        id: number;
+        serviceName: string;
+        apiKey: string;
+        aiModel?: string;
+        description?: string;
+        isActive: boolean;
+        lastUsedAt?: string;
+        createdAt: string;
+        updatedAt: string;
+    }>>;
+    addApiKey: (serviceName: string, apiKey: string, aiModel: string, description?: string) => Promise<{ success: boolean; apiKeyId?: number; error?: string }>;
+    deleteApiKeyById: (apiKeyId: number) => Promise<{ success: boolean; error?: string }>;
+    setActiveApiKey: (apiKeyId: number) => Promise<{ success: boolean; error?: string }>;
+    getActiveApiKeyId: () => Promise<number | null>;
+
     // セッション管理
     createSession: () => Promise<ChatSession>;
     switchSession: (sessionId: string) => Promise<boolean>;
@@ -59,6 +76,14 @@ const electronAPI: ElectronAPI = {
     hasSavedApiKey: () => ipcRenderer.invoke('has-saved-api-key'),
     deleteSavedApiKey: () => ipcRenderer.invoke('delete-saved-api-key'),
     isAiInitialized: () => ipcRenderer.invoke('is-ai-initialized'),
+
+    // 新しいAPIキー管理機能
+    getAllApiKeys: (serviceName?: string) => ipcRenderer.invoke('get-all-api-keys', serviceName),
+    addApiKey: (serviceName: string, apiKey: string, aiModel: string, description?: string) =>
+        ipcRenderer.invoke('add-api-key', serviceName, apiKey, aiModel, description),
+    deleteApiKeyById: (apiKeyId: number) => ipcRenderer.invoke('delete-api-key-by-id', apiKeyId),
+    setActiveApiKey: (apiKeyId: number) => ipcRenderer.invoke('set-active-api-key', apiKeyId),
+    getActiveApiKeyId: () => ipcRenderer.invoke('get-active-api-key-id'),
 
     // セッション管理
     createSession: () => ipcRenderer.invoke('create-session'),

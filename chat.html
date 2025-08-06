@@ -152,6 +152,214 @@
             background: #c53030;
         }
 
+        /* APIキー管理セクション */
+        .api-key-management-section {
+            background: rgba(255, 255, 255, 0.9);
+            padding: 15px 20px;
+            border-bottom: 1px solid rgba(0, 0, 0, 0.1);
+        }
+
+        .api-key-management-section.hidden {
+            display: none;
+        }
+
+        .api-key-management-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+        }
+
+        .api-key-management-title {
+            font-size: 16px;
+            font-weight: 600;
+            color: #4a5568;
+        }
+
+        .api-key-management-toggle {
+            background: #667eea;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            padding: 6px 12px;
+            cursor: pointer;
+            font-size: 12px;
+            font-weight: 600;
+            transition: all 0.3s ease;
+        }
+
+        .api-key-management-toggle:hover {
+            background: #5a67d8;
+        }
+
+        .api-key-management-content {
+            display: none;
+        }
+
+        .api-key-management-content.show {
+            display: block;
+        }
+
+        .api-key-list {
+            border: 1px solid #e2e8f0;
+            border-radius: 8px;
+            background: white;
+            margin-bottom: 15px;
+            max-height: 200px;
+            overflow-y: auto;
+        }
+
+        .api-key-item {
+            padding: 12px;
+            border-bottom: 1px solid #e2e8f0;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .api-key-item:last-child {
+            border-bottom: none;
+        }
+
+        .api-key-item.active {
+            background: #f0fff4;
+            border-left: 4px solid #48bb78;
+        }
+
+        .api-key-info {
+            flex: 1;
+        }
+
+        .api-key-model {
+            font-weight: 600;
+            color: #4a5568;
+            font-size: 14px;
+        }
+
+        .api-key-description {
+            color: #718096;
+            font-size: 12px;
+            margin-top: 2px;
+        }
+
+        .api-key-key-preview {
+            color: #a0aec0;
+            font-size: 11px;
+            font-family: monospace;
+            margin-top: 2px;
+        }
+
+        .api-key-actions {
+            display: flex;
+            gap: 5px;
+        }
+
+        .api-key-btn {
+            background: #4299e1;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            padding: 4px 8px;
+            cursor: pointer;
+            font-size: 11px;
+            transition: all 0.3s ease;
+        }
+
+        .api-key-btn:hover {
+            background: #3182ce;
+        }
+
+        .api-key-btn.active {
+            background: #48bb78;
+        }
+
+        .api-key-btn.active:hover {
+            background: #38a169;
+        }
+
+        .api-key-btn.delete {
+            background: #e53e3e;
+        }
+
+        .api-key-btn.delete:hover {
+            background: #c53030;
+        }
+
+        .add-api-key-form {
+            border: 1px solid #e2e8f0;
+            border-radius: 8px;
+            padding: 15px;
+            background: white;
+            display: none;
+        }
+
+        .add-api-key-form.show {
+            display: block;
+        }
+
+        .add-api-key-form h4 {
+            margin: 0 0 15px 0;
+            color: #4a5568;
+            font-size: 14px;
+        }
+
+        .form-row {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 10px;
+        }
+
+        .form-group {
+            flex: 1;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 5px;
+            color: #4a5568;
+            font-size: 12px;
+            font-weight: 600;
+        }
+
+        .form-group input,
+        .form-group select {
+            width: 100%;
+            padding: 8px;
+            border: 1px solid #e2e8f0;
+            border-radius: 4px;
+            font-size: 12px;
+        }
+
+        .form-group input:focus,
+        .form-group select:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        .add-api-key-buttons {
+            display: flex;
+            gap: 10px;
+            margin-top: 15px;
+        }
+
+        .btn-add {
+            background: #48bb78;
+            color: white;
+        }
+
+        .btn-add:hover {
+            background: #38a169;
+        }
+
+        .btn-cancel {
+            background: #718096;
+            color: white;
+        }
+
+        .btn-cancel:hover {
+            background: #4a5568;
+        }
+
         /* モーダルダイアログ */
         .modal-overlay {
             position: fixed;
@@ -505,6 +713,56 @@
             </select>
             <button class="session-btn" id="newSessionBtn">新規</button>
             <button class="session-btn danger" id="deleteSessionBtn">削除</button>
+        </div>
+    </div>
+
+    <!-- APIキー管理セクション -->
+    <div class="api-key-management-section hidden" id="apiKeyManagementSection">
+        <div class="api-key-management-header">
+            <span class="api-key-management-title">APIキー管理</span>
+            <button class="api-key-management-toggle" id="toggleApiKeyManagement">管理</button>
+        </div>
+        <div class="api-key-management-content" id="apiKeyManagementContent">
+            <!-- APIキー一覧 -->
+            <div class="api-key-list" id="apiKeyList">
+                <!-- APIキーが動的に追加される -->
+            </div>
+
+            <!-- APIキー追加ボタン -->
+            <button class="btn btn-primary btn-small" id="showAddApiKeyFormBtn">新しいAPIキーを追加</button>
+
+            <!-- APIキー追加フォーム -->
+            <div class="add-api-key-form" id="addApiKeyForm">
+                <h4>新しいAPIキーを追加</h4>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="addApiKeyService">サービス</label>
+                        <select id="addApiKeyService">
+                            <option value="gemini">Google Gemini</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="addApiKeyModel">AIモデル</label>
+                        <select id="addApiKeyModel">
+                            <option value="gemini-1.5-flash">Gemini 1.5 Flash</option>
+                            <option value="gemini-1.5-pro">Gemini 1.5 Pro</option>
+                            <option value="gemini-2.0-flash">Gemini 2.0 Flash</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label for="addApiKeyValue">APIキー</label>
+                    <input type="password" id="addApiKeyValue" placeholder="AIzaSy...">
+                </div>
+                <div class="form-group">
+                    <label for="addApiKeyDescription">説明（オプション）</label>
+                    <input type="text" id="addApiKeyDescription" placeholder="用途や環境の説明">
+                </div>
+                <div class="add-api-key-buttons">
+                    <button class="btn btn-add" id="addApiKeyBtn">追加</button>
+                    <button class="btn btn-cancel" id="cancelAddApiKeyBtn">キャンセル</button>
+                </div>
+            </div>
         </div>
     </div>
 

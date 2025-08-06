@@ -75,6 +75,90 @@ export class IPCHandlers {
         ipcMain.handle('is-ai-initialized', async (_event: IpcMainInvokeEvent) => {
             return this.aiManager.isInitialized();
         });
+
+        // 新しいAPIキー管理機能
+
+        // 全APIキーの一覧を取得
+        ipcMain.handle('get-all-api-keys', async (_event: IpcMainInvokeEvent, serviceName?: string) => {
+            try {
+                if (serviceName) {
+                    return await this.apiKeyStorage.getAllApiKeysForService(serviceName);
+                } else {
+                    // 全サービスのAPIキーを取得（現在はGeminiのみ）
+                    return await this.apiKeyStorage.getAllApiKeysForService('gemini');
+                }
+            } catch (error) {
+                console.error('Error getting API keys:', error);
+                return [];
+            }
+        });
+
+        // APIキーを追加
+        ipcMain.handle('add-api-key', async (_event: IpcMainInvokeEvent, serviceName: string, apiKey: string, aiModel: string, description?: string) => {
+            try {
+                const apiKeyId = await this.apiKeyStorage.saveApiKey(serviceName, apiKey, aiModel, description);
+                console.log(`API key added with ID: ${apiKeyId}`);
+                return { success: true, apiKeyId };
+            } catch (error) {
+                console.error('Error adding API key:', error);
+                return {
+                    success: false,
+                    error: error instanceof Error ? error.message : 'Unknown error'
+                };
+            }
+        });
+
+        // APIキーをIDで削除
+        ipcMain.handle('delete-api-key-by-id', async (_event: IpcMainInvokeEvent, apiKeyId: number) => {
+            try {
+                await this.apiKeyStorage.deleteApiKeyById(apiKeyId);
+                console.log(`API key deleted with ID: ${apiKeyId}`);
+                return { success: true };
+            } catch (error) {
+                console.error('Error deleting API key:', error);
+                return {
+                    success: false,
+                    error: error instanceof Error ? error.message : 'Unknown error'
+                };
+            }
+        });
+
+        // アクティブなAPIキーを設定（設定値に保存）
+        ipcMain.handle('set-active-api-key', async (_event: IpcMainInvokeEvent, apiKeyId: number) => {
+            try {
+                // APIキーの情報を取得
+                const apiKeyInfo = await this.apiKeyStorage.getApiKeyById(apiKeyId);
+                if (!apiKeyInfo) {
+                    return { success: false, error: 'API key not found' };
+                }
+
+                // 設定に保存
+                await this.settingsManager.setSetting('api_key_id', apiKeyId, 'number', '使用するAPIキーのID');
+
+                // AIを新しいAPIキーで初期化
+                const initResult = await this.aiManager.initialize(apiKeyInfo.apiKey, false, apiKeyInfo.aiModel);
+
+                console.log(`Active API key set to ID: ${apiKeyId}`);
+                return { success: initResult };
+            } catch (error) {
+                console.error('Error setting active API key:', error);
+                return {
+                    success: false,
+                    error: error instanceof Error ? error.message : 'Unknown error'
+                };
+            }
+        });
+
+        // 現在のアクティブなAPIキーIDを取得
+        ipcMain.handle('get-active-api-key-id', async (_event: IpcMainInvokeEvent) => {
+            try {
+                const config = await this.settingsManager.getCurrentConfig();
+                return config.apiKeyId || null;
+            } catch (error) {
+                console.error('Error getting active API key ID:', error);
+                return null;
+            }
+        });
     }
 
     /**

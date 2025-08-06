@@ -13,6 +13,18 @@ interface ChatSession {
     lastMessageAt: Date;
 }
 
+interface ApiKeyInfo {
+    id: number;
+    serviceName: string;
+    apiKey: string;
+    aiModel?: string;
+    description?: string;
+    isActive: boolean;
+    lastUsedAt?: string;
+    createdAt: string;
+    updatedAt: string;
+}
+
 class ChatApp {
     private isApiKeySet = false;
     private isLoading = false;
@@ -20,6 +32,8 @@ class ChatApp {
     private currentSession: ChatSession | null = null;
     private sessions: ChatSession[] = [];
     private confirmCallback: ((result: boolean) => void) | null = null;
+    private apiKeys: ApiKeyInfo[] = [];
+    private currentActiveApiKeyId: number | null = null;
 
     private elements = {
         apiKeySection: document.getElementById('apiKeySection') as HTMLDivElement,
@@ -32,6 +46,19 @@ class ChatApp {
         sessionSelect: document.getElementById('sessionSelect') as HTMLSelectElement,
         newSessionBtn: document.getElementById('newSessionBtn') as HTMLButtonElement,
         deleteSessionBtn: document.getElementById('deleteSessionBtn') as HTMLButtonElement,
+        // APIキー管理要素
+        apiKeyManagementSection: document.getElementById('apiKeyManagementSection') as HTMLDivElement,
+        toggleApiKeyManagement: document.getElementById('toggleApiKeyManagement') as HTMLButtonElement,
+        apiKeyManagementContent: document.getElementById('apiKeyManagementContent') as HTMLDivElement,
+        apiKeyList: document.getElementById('apiKeyList') as HTMLDivElement,
+        showAddApiKeyFormBtn: document.getElementById('showAddApiKeyFormBtn') as HTMLButtonElement,
+        addApiKeyForm: document.getElementById('addApiKeyForm') as HTMLDivElement,
+        addApiKeyService: document.getElementById('addApiKeyService') as HTMLSelectElement,
+        addApiKeyModel: document.getElementById('addApiKeyModel') as HTMLSelectElement,
+        addApiKeyValue: document.getElementById('addApiKeyValue') as HTMLInputElement,
+        addApiKeyDescription: document.getElementById('addApiKeyDescription') as HTMLInputElement,
+        addApiKeyBtn: document.getElementById('addApiKeyBtn') as HTMLButtonElement,
+        cancelAddApiKeyBtn: document.getElementById('cancelAddApiKeyBtn') as HTMLButtonElement,
         status: document.getElementById('status') as HTMLDivElement,
         chatMessagesContainer: document.getElementById('chatMessages') as HTMLDivElement,
         chatInput: document.getElementById('chatInput') as HTMLTextAreaElement,
@@ -70,6 +97,18 @@ class ChatApp {
                 this.handleSetApiKey();
             }
         });
+
+        // APIキー管理トグル
+        this.elements.toggleApiKeyManagement.addEventListener('click', () => this.toggleApiKeyManagement());
+
+        // APIキー追加フォーム表示
+        this.elements.showAddApiKeyFormBtn.addEventListener('click', () => this.showAddApiKeyForm());
+
+        // APIキー追加
+        this.elements.addApiKeyBtn.addEventListener('click', () => this.handleAddApiKey());
+
+        // APIキー追加キャンセル
+        this.elements.cancelAddApiKeyBtn.addEventListener('click', () => this.hideAddApiKeyForm());
 
         // セッション管理
         this.elements.sessionSelect.addEventListener('change', () => this.handleSessionSwitch());
@@ -133,9 +172,14 @@ class ChatApp {
                 this.showStatus(`✅ 接続完了！セッションを作成してください ${saveMessage}`, 'connected');
                 this.elements.apiKeySection.classList.add('hidden');
                 this.elements.sessionSection.classList.remove('hidden');
+                this.elements.apiKeyManagementSection.classList.remove('hidden');
 
-                // セッション一覧をロード
-                await this.loadSessions();
+                // APIキー情報とセッション一覧をロード
+                await Promise.all([
+                    this.loadApiKeys(),
+                    this.loadActiveApiKeyId(),
+                    this.loadSessions()
+                ]);
 
                 // ウェルカムメッセージを追加
                 this.addMessage({
@@ -163,7 +207,7 @@ class ChatApp {
             if (hasSavedKey) {
                 this.elements.deleteSavedApiKeyBtn.style.display = 'block';
                 this.elements.saveApiKeyCheckbox.checked = true; // デフォルトでチェック
-                
+
                 // AIが既に初期化されているかチェック
                 const isInitialized = await (window as any).electronAPI.isAiInitialized();
                 if (isInitialized) {
@@ -184,9 +228,14 @@ class ChatApp {
             this.showStatus('✅ 保存されたAPIキーで接続完了！', 'connected');
             this.elements.apiKeySection.classList.add('hidden');
             this.elements.sessionSection.classList.remove('hidden');
-            
-            // セッション一覧をロード
-            this.loadSessions().then(() => {
+            this.elements.apiKeyManagementSection.classList.remove('hidden');
+
+            // APIキー情報とセッション一覧をロード
+            Promise.all([
+                this.loadApiKeys(),
+                this.loadActiveApiKeyId(),
+                this.loadSessions()
+            ]).then(() => {
                 // ウェルカムメッセージを追加
                 this.addMessage({
                     type: 'ai',
@@ -527,9 +576,193 @@ class ChatApp {
             this.confirmCallback = null;
         }
     }
+
+    // APIキー管理メソッド
+    private toggleApiKeyManagement(): void {
+        const content = this.elements.apiKeyManagementContent;
+        const isVisible = content.classList.contains('show');
+
+        if (isVisible) {
+            content.classList.remove('show');
+            this.elements.toggleApiKeyManagement.textContent = '管理';
+        } else {
+            content.classList.add('show');
+            this.elements.toggleApiKeyManagement.textContent = '閉じる';
+            this.loadApiKeys(); // 開いたときにAPIキー一覧を更新
+        }
+    }
+
+    private async loadApiKeys(): Promise<void> {
+        try {
+            this.apiKeys = await (window as any).electronAPI.getAllApiKeys();
+            this.renderApiKeyList();
+        } catch (error) {
+            console.error('Error loading API keys:', error);
+            this.showStatus('APIキー一覧の読み込みに失敗しました', 'error');
+        }
+    }
+
+    private async loadActiveApiKeyId(): Promise<void> {
+        try {
+            this.currentActiveApiKeyId = await (window as any).electronAPI.getActiveApiKeyId();
+        } catch (error) {
+            console.error('Error loading active API key ID:', error);
+        }
+    }
+
+    private renderApiKeyList(): void {
+        const container = this.elements.apiKeyList;
+        container.innerHTML = '';
+
+        if (this.apiKeys.length === 0) {
+            container.innerHTML = '<div style="padding: 20px; text-align: center; color: #718096;">登録されたAPIキーがありません</div>';
+            return;
+        }
+
+        this.apiKeys.forEach(apiKey => {
+            const item = document.createElement('div');
+            item.className = `api-key-item ${apiKey.id === this.currentActiveApiKeyId ? 'active' : ''}`;
+
+            // APIキーの最初と最後の数文字のみ表示
+            const keyPreview = `${apiKey.apiKey.substring(0, 8)}...${apiKey.apiKey.substring(apiKey.apiKey.length - 4)}`;
+
+            item.innerHTML = `
+                <div class="api-key-info">
+                    <div class="api-key-model">${apiKey.aiModel || 'gemini-1.5-flash'}</div>
+                    <div class="api-key-description">${apiKey.description || 'No description'}</div>
+                    <div class="api-key-key-preview">${keyPreview}</div>
+                </div>
+                <div class="api-key-actions">
+                    <button class="api-key-btn ${apiKey.id === this.currentActiveApiKeyId ? 'active' : ''}" 
+                            onclick="chatApp.setActiveApiKey(${apiKey.id})" 
+                            ${apiKey.id === this.currentActiveApiKeyId ? 'disabled' : ''}>
+                        ${apiKey.id === this.currentActiveApiKeyId ? 'アクティブ' : '使用する'}
+                    </button>
+                    <button class="api-key-btn delete" onclick="chatApp.deleteApiKey(${apiKey.id})">削除</button>
+                </div>
+            `;
+
+            container.appendChild(item);
+        });
+    }
+
+    private showAddApiKeyForm(): void {
+        this.elements.addApiKeyForm.classList.add('show');
+        this.elements.showAddApiKeyFormBtn.style.display = 'none';
+        this.elements.addApiKeyValue.focus();
+    }
+
+    private hideAddApiKeyForm(): void {
+        this.elements.addApiKeyForm.classList.remove('show');
+        this.elements.showAddApiKeyFormBtn.style.display = 'block';
+        this.clearAddApiKeyForm();
+    }
+
+    private clearAddApiKeyForm(): void {
+        this.elements.addApiKeyValue.value = '';
+        this.elements.addApiKeyDescription.value = '';
+        this.elements.addApiKeyService.selectedIndex = 0;
+        this.elements.addApiKeyModel.selectedIndex = 0;
+    }
+
+    private async handleAddApiKey(): Promise<void> {
+        const service = this.elements.addApiKeyService.value;
+        const model = this.elements.addApiKeyModel.value;
+        const apiKey = this.elements.addApiKeyValue.value.trim();
+        const description = this.elements.addApiKeyDescription.value.trim();
+
+        if (!apiKey) {
+            this.showStatus('APIキーを入力してください', 'error');
+            return;
+        }
+
+        if (!apiKey.startsWith('AIzaSy')) {
+            this.showStatus('有効なGoogle Gemini APIキーを入力してください', 'error');
+            return;
+        }
+
+        try {
+            this.elements.addApiKeyBtn.disabled = true;
+            this.showStatus('APIキーを追加中...', '');
+
+            const result = await (window as any).electronAPI.addApiKey(service, apiKey, model, description);
+
+            if (result.success) {
+                this.showStatus('✅ APIキーが追加されました', 'connected');
+                this.hideAddApiKeyForm();
+                await this.loadApiKeys(); // リストを更新
+            } else {
+                this.showStatus(`❌ APIキーの追加に失敗しました: ${result.error}`, 'error');
+            }
+        } catch (error) {
+            console.error('Error adding API key:', error);
+            this.showStatus('❌ APIキーの追加中にエラーが発生しました', 'error');
+        } finally {
+            this.elements.addApiKeyBtn.disabled = false;
+        }
+    }
+
+    public async setActiveApiKey(apiKeyId: number): Promise<void> {
+        if (apiKeyId === this.currentActiveApiKeyId) {
+            return; // 既にアクティブ
+        }
+
+        try {
+            this.showStatus('APIキーを切り替え中...', '');
+
+            const result = await (window as any).electronAPI.setActiveApiKey(apiKeyId);
+
+            if (result.success) {
+                this.currentActiveApiKeyId = apiKeyId;
+                this.showStatus('✅ APIキーが切り替わりました', 'connected');
+                this.renderApiKeyList(); // リストを更新
+            } else {
+                this.showStatus(`❌ APIキーの切り替えに失敗しました: ${result.error}`, 'error');
+            }
+        } catch (error) {
+            console.error('Error setting active API key:', error);
+            this.showStatus('❌ APIキーの切り替え中にエラーが発生しました', 'error');
+        }
+    }
+
+    public async deleteApiKey(apiKeyId: number): Promise<void> {
+        // アクティブなAPIキーは削除できない
+        if (apiKeyId === this.currentActiveApiKeyId) {
+            this.showStatus('❌ アクティブなAPIキーは削除できません', 'error');
+            return;
+        }
+
+        const confirmed = await this.showConfirmDialog(
+            'APIキーの削除',
+            'このAPIキーを削除しますか？この操作は取り消せません。'
+        );
+
+        if (!confirmed) return;
+
+        try {
+            this.showStatus('APIキーを削除中...', '');
+
+            const result = await (window as any).electronAPI.deleteApiKeyById(apiKeyId);
+
+            if (result.success) {
+                this.showStatus('✅ APIキーが削除されました', 'connected');
+                await this.loadApiKeys(); // リストを更新
+            } else {
+                this.showStatus(`❌ APIキーの削除に失敗しました: ${result.error}`, 'error');
+            }
+        } catch (error) {
+            console.error('Error deleting API key:', error);
+            this.showStatus('❌ APIキーの削除中にエラーが発生しました', 'error');
+        }
+    }
 }
+
+// グローバルなChatAppインスタンス（HTMLから呼び出すため）
+let chatApp: ChatApp;
 
 // アプリを初期化
 document.addEventListener('DOMContentLoaded', () => {
-    new ChatApp();
+    chatApp = new ChatApp();
+    // グローバルに公開（HTMLのonclick属性から呼び出すため）
+    (window as any).chatApp = chatApp;
 });
