@@ -16,10 +16,12 @@
 ## 🎯 プロジェクトの目的
 
 Eveは以下の機能を提供するデスクトップアプリケーションです：
-- **Google Gemini AIとのチャット機能**: Gemini 1.5 Flash モデルによる高度な対話
+- **Google Gemini AIとのチャット機能**: Gemini 1.5 Flash, 2.0 Flash モデルによる高度な対話
+- **複数APIキー管理**: 複数のAPIキーを暗号化保存、切り替え可能
 - **高度なセッション管理**: 複数の会話並行管理、メタデータ付き履歴保存
 - **会話履歴の永続化**: SQLiteベースの安全なローカル保存
 - **企業級セキュリティ**: 多層暗号化によるAPIキー保護
+- **初期設定ウィザード**: 初回起動時のガイド付きセットアップ
 - **自動データベース管理**: マイグレーション、バックアップ、ヘルスチェック機能
 - **モダンUI**: ガラスモーフィズムデザインによる美しいインターフェース
 - **セキュアな通信**: プリロードスクリプトによる安全なIPC通信
@@ -31,58 +33,69 @@ Eveは以下の機能を提供するデスクトップアプリケーション�
 ## 🏗️ アーキテクチャ
 
 ### メインコンポーネント
-1. **メインプロセス** (`src/main.ts` - 98行): Electronアプリの起動、コンポーネント統合、ライフサイクル管理
+1. **メインプロセス** (`src/main.ts` - 128行): Electronアプリの起動、コンポーネント統合、ライフサイクル管理
 2. **データベース管理システム**: 
-   - **DatabaseManager** (`src/database-manager.ts` - 214行): 統合データベース管理
-   - **MigrationManager** (`src/database-migration.ts` - 284行): マイグレーション自動実行
-   - **MigrationConfig** (`src/database-migrations-config.ts` - 261行): スキーマ定義
+   - **DatabaseManager** (`src/database-manager.ts` - 249行): 統合データベース管理
+   - **MigrationManager** (`src/database-migration.ts` - 332行): マイグレーション自動実行
+   - **MigrationConfig** (`src/database-migrations-config.ts` - 294行): スキーマ定義
 3. **AIシステム**:
-   - **AIManager** (`src/ai-manager.ts` - 103行): Google Gemini AI統合、LangGraph実装
-   - **AIService** (`src/ai-service.ts` - 70行): AI処理サービス
-   - **ConversationManager** (`src/conversation-manager.ts` - 97行): 会話履歴管理
+   - **AIManager** (`src/ai-manager.ts` - 142行): Google Gemini AI統合、LangGraph実装
+   - **AIService** (`src/ai-service.ts` - 81行): AI処理サービス
+   - **ConversationManager** (`src/conversation-manager.ts` - 114行): 会話履歴管理
 4. **セッション管理**:
-   - **SessionManager** (`src/session-manager.ts` - 70行): セッション状態管理、ID生成
-   - **SessionStorage** (`src/session-storage.ts` - 180行): セッションデータ永続化
-5. **セキュリティシステム** (`src/crypto-utils.ts` - 257行): 多層暗号化、APIキー保護
+   - **SessionManager** (`src/session-manager.ts` - 81行): セッション状態管理、ID生成
+   - **SessionStorage** (`src/session-storage.ts` - 204行): セッションデータ永続化
+5. **セキュリティシステム** (`src/crypto-utils.ts` - 567行): 多層暗号化、APIキー保護
 6. **通信層**:
-   - **IPCハンドラー** (`src/ipc-handlers.ts` - 213行): プロセス間通信の集約
-   - **プリロードスクリプト** (`src/preload.ts` - 79行): セキュアなフロントエンド-バックエンドAPI
+   - **IPCハンドラー** (`src/ipc-handlers.ts` - 377行): プロセス間通信の集約
+   - **プリロードスクリプト** (`src/preload.ts` - 116行): セキュアなフロントエンド-バックエンドAPI
 7. **UI層**:
-   - **ウィンドウマネージャー** (`src/window-manager.ts` - 92行): Electronウィンドウの作成と管理
-   - **フロントエンド** (`src/chat.ts` - 458行): チャットUI、セッション管理、ユーザーインタラクション
-8. **HTMLファイル**: 
-   - `chat.html` (520行): チャットインターフェース（AI会話、セッション管理）
+   - **ウィンドウマネージャー** (`src/window-manager.ts` - 185行): Electronウィンドウの作成と管理
+   - **フロントエンド** (`src/chat.ts` - 768行): チャットUI、セッション管理、ユーザーインタラクション
+   - **初期設定UI** (`src/initial-setup.ts` - 283行): 初回起動時のセットアップウィザード
+8. **設定管理**:
+   - **SettingsManager** (`src/settings-manager.ts` - 255行): ユーザー設定と初期セットアップ状態管理
+9. **HTMLファイル**: 
+   - `chat.html` (811行): チャットインターフェース（AI会話、セッション管理）
+   - `initial-setup.html` (397行): 初期設定ウィザード画面
 
 ### 技術スタック
 ```
 フロントエンド: HTML + CSS + TypeScript
-├── chat.html (520行): メインチャットUI、ガラスモーフィズムデザイン
-└── chat.ts (458行): チャットロジック、セッション管理UI
+├── chat.html (811行): メインチャットUI、ガラスモーフィズムデザイン
+├── initial-setup.html (397行): 初期設定ウィザードUI
+├── chat.ts (768行): チャットロジック、セッション管理UI
+└── initial-setup.ts (283行): セットアップウィザードロジック
 
 Electron IPC: プリロードスクリプトによるセキュアな通信
-├── preload.ts (79行): セキュアAPI、型安全な通信インターフェース
-├── ipc-handlers.ts (213行): IPCハンドラー集約、エンドポイント管理
-└── main.ts (98行): アプリ起動、コンポーネント統合
+├── preload.ts (116行): セキュアAPI、型安全な通信インターフェース
+├── initial-setup-preload.ts (21行): セットアップ専用API
+├── ipc-handlers.ts (377行): IPCハンドラー集約、エンドポイント管理
+└── main.ts (128行): アプリ起動、コンポーネント統合
 
 データベースシステム: SQLite + 自動マイグレーション
-├── database-manager.ts (214行): 統合管理、ヘルスチェック、バックアップ
-├── database-migration.ts (284行): マイグレーション自動実行、ロールバック
-├── database-migrations-config.ts (261行): スキーマ定義、バージョン管理
-└── session-storage.ts (180行): セッションデータ永続化
+├── database-manager.ts (249行): 統合管理、ヘルスチェック、バックアップ
+├── database-migration.ts (332行): マイグレーション自動実行、ロールバック
+├── database-migrations-config.ts (294行): スキーマ定義、バージョン管理
+└── session-storage.ts (204行): セッションデータ永続化
 
 AIシステム: LangChain + LangGraph + Google Gemini
-├── ai-manager.ts (103行): AI統合、LangGraphワークフロー
-├── ai-service.ts (70行): AI処理サービス
-├── conversation-manager.ts (97行): 会話履歴管理
-└── Google Gemini 1.5 Flash モデル
+├── ai-manager.ts (142行): AI統合、LangGraphワークフロー
+├── ai-service.ts (81行): AI処理サービス
+├── conversation-manager.ts (114行): 会話履歴管理
+└── Google Gemini 1.5 Flash, 2.0 Flash モデル
 
 セキュリティシステム: 多層暗号化
-├── crypto-utils.ts (257行): 暗号化キー管理、データ暗号化、APIキー保存
+├── crypto-utils.ts (567行): 暗号化キー管理、データ暗号化、APIキー保存
 └── Electron safeStorage + crypto-js AES連携
 
 セッション管理: UUID + メタデータ
-├── session-manager.ts (70行): セッション状態管理
+├── session-manager.ts (81行): セッション状態管理
 └── 会話履歴、統計情報、カスタム名前付け
+
+設定管理: 永続化設定システム
+├── settings-manager.ts (255行): ユーザー設定、初期セットアップ管理
+└── SQLiteベース設定保存、バリデーション
 
 パッケージング: Electron Builder
 ├── Windows (NSIS)、macOS (DMG)、Linux (AppImage)
@@ -137,97 +150,128 @@ npm run build:linux  # Linux (AppImage)
 ## 🧩 主要ファイルの役割
 
 ### コアシステム
-#### `src/main.ts` (98行)
+#### `src/main.ts` (128行)
 - Electronアプリケーションの起動とライフサイクル管理
 - 全コンポーネントの初期化と統合
 - DatabaseManager、AIManager、SessionManagerの組み立て
 - セキュリティ設定とハンドラー設定
 
-#### `src/database-manager.ts` (214行)
+#### `src/database-manager.ts` (249行)
 - 複数データベースの統合管理
 - 自動マイグレーション実行とヘルスチェック
 - データベースバックアップ機能
 - 開発用ロールバック機能
 
-#### `src/database-migration.ts` (284行)
+#### `src/database-migration.ts` (332行)
 - マイグレーション自動実行システム
 - トランザクション管理とロールバック機能
 - スキーマバージョン管理
 - エラーハンドリングと状態追跡
 
-#### `src/database-migrations-config.ts` (261行)
+#### `src/database-migrations-config.ts` (294行)
 - 全データベースのマイグレーション定義
 - スキーマ変更履歴の管理
 - 暗号化、APIキー、会話履歴データベース設定
 
 ### AIシステム
-#### `src/ai-manager.ts` (103行)
-- Google Gemini AI の初期化と管理
-- LangGraph ワークフローの実装
-- セッション単位での会話履歴管理
-- AI応答の生成とエラーハンドリング
+#### `src/ai-manager.ts` (142行)
+- AI関連コンポーネントの統合管理
+- Google Gemini AI の初期化とAPIキー管理
+- LangGraphワークフローの設定
+- セッション管理との連携
+- 複数AIモデル対応（Gemini 1.5 Flash, 2.0 Flash）
 
-#### `src/ai-service.ts` (70行)
-- AI処理サービスの抽象化
-- Gemini APIとの低レベル通信
-- レスポンス処理とフォーマット
+#### `src/ai-service.ts` (81行)
+- Google Gemini API との直接連携
+- AIモデルの初期化とAPIキー設定
+- ChatGoogleGenerativeAI インスタンス管理
+- エラーハンドリングと回復処理
 
-#### `src/conversation-manager.ts` (97行)
+#### `src/conversation-manager.ts` (114行)
 - 会話履歴の管理とメタデータ処理
+- LangGraphワークフローの実行
 - セッション統計情報の収集
 - 会話検索とフィルタリング機能
 
 ### セッション・ストレージ
-#### `src/session-manager.ts` (70行)
+#### `src/session-manager.ts` (81行)
 - セッション作成と管理
 - 現在のセッション状態追跡
 - セッションIDの生成とバリデーション
 
-#### `src/session-storage.ts` (180行)
+#### `src/session-storage.ts` (204行)
 - セッションデータの永続化
 - 会話履歴の効率的な保存・読み込み
 - データベース接続の管理
 
 ### セキュリティ
-#### `src/crypto-utils.ts` (257行)
+#### `src/crypto-utils.ts` (567行)
 - 暗号化キー管理（EncryptionKeyManager）
 - 多層データ暗号化・復号化（DataEncryption）
 - APIキーの安全な保存と読み込み（ApiKeyStorage）
 - ElectronのsafeStorageとcrypto-js連携
+- 複数APIキーの管理と切り替え機能
 
 ### 通信・UI管理
-#### `src/ipc-handlers.ts` (213行)
+#### `src/ipc-handlers.ts` (377行)
 - IPC（プロセス間通信）ハンドラーの集約
-- API キー管理ハンドラー（設定、削除、確認）
+- API キー管理ハンドラー（複数キー対応、設定、削除、確認）
 - チャット機能ハンドラー（メッセージ送信、履歴取得）
 - セッション管理ハンドラー（作成、切り替え、削除）
 - データベース管理ハンドラー（ヘルスチェック、バックアップ）
+- 初期設定関連ハンドラー（セットアップフロー）
 
-#### `src/window-manager.ts` (92行)
+#### `src/window-manager.ts` (185行)
 - Electronウィンドウの作成と管理
 - セキュリティ設定（nodeIntegration無効、contextIsolation有効）
 - ウィンドウのライフサイクル管理
+- 初期設定ウィンドウの管理
 
-#### `src/preload.ts` (79行)
+#### `src/preload.ts` (116行)
 - セキュアなフロントエンド-バックエンド通信API
 - IPC経由でメインプロセスの機能をフロントエンドに公開
 - 型安全なAPIインターフェース
 - イベントリスナーの管理
 
+#### `src/initial-setup-preload.ts` (21行)
+- 初期設定専用のプリロードスクリプト
+- セットアップ機能のセキュアAPI公開
+
+### 設定管理
+#### `src/settings-manager.ts` (255行)
+- ユーザー設定の永続化管理
+- 初期セットアップ完了状態の追跡
+- 設定値のバリデーションと型安全性
+- SQLiteベースの設定保存
+
 ### フロントエンド
-#### `src/chat.ts` (458行) 
+#### `src/chat.ts` (768行) 
 - チャットアプリケーションのフロントエンドロジック
 - チャットUI の制御（メッセージ表示、入力処理）
 - セッション管理UI（作成、切り替え、削除）
+- APIキー管理UI（複数キー対応、暗号化保存）
 - モーダルダイアログの制御
-- APIキー設定フローの管理
+- 確認ダイアログ、フォームバリデーション
 
-#### `chat.html` (520行)
+#### `src/initial-setup.ts` (283行)
+- 初期設定ウィザードのフロントエンドロジック
+- ステップ式ユーザーガイド（4ステップ）
+- ユーザー名、AIサービス、モデル、APIキー設定
+- バリデーション、エラーハンドリング
+- セットアップ完了後のメインアプリ起動
+
+#### `chat.html` (811行)
 - メインのチャットインターフェース
 - モダンなレスポンシブデザイン（ガラスモーフィズム）
-- セッション管理UI
+- セッション管理UI、APIキー管理UI
 - モーダルダイアログ（セッション作成、確認）
 - リアルタイムステータス表示
+
+#### `initial-setup.html` (397行)
+- 初期設定ウィザードのUI
+- プログレスインジケーター付きマルチステップフォーム
+- モダンなカードベースデザイン
+- レスポンシブ対応、アニメーション効果
 
 ## 🔄 データフロー
 
@@ -322,6 +366,7 @@ APIキー取得 → SQLite読み込み → crypto-js復号化 → ElectronSafeSt
   - `langchain@^0.3.30`: LangChainフレームワーク
   - `uuid@^11.1.0`: セッションID生成
   - `better-sqlite3@^12.2.0`: SQLiteデータベース
+  - `crypto-js@^4.2.0`: 暗号化ライブラリ
   - `crypto-js@^4.2.0`: 暗号化処理
 
 - **開発依存関係**:

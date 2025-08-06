@@ -60,11 +60,15 @@ src/
 ├── window-manager.ts           # ウィンドウライフサイクル管理
 ├── ipc-handlers.ts            # プロセス間通信集約
 ├── preload.ts                 # セキュアAPI公開
+├── initial-setup-preload.ts   # 初期設定専用API
 ├── chat.ts                    # フロントエンドロジック
+├── initial-setup.ts           # 初期設定ウィザード
 ├── ai-manager.ts              # AI統合とワークフロー
+├── ai-service.ts              # AI処理サービス
 ├── session-manager.ts         # セッション状態管理
 ├── conversation-manager.ts    # 会話履歴管理
 ├── session-storage.ts         # データ永続化
+├── settings-manager.ts        # 設定管理システム
 ├── crypto-utils.ts            # 暗号化システム
 ├── database-manager.ts        # データベース統合管理
 ├── database-migration.ts      # マイグレーション機能
@@ -74,15 +78,19 @@ src/
 ### 新機能追加時のファイル影響範囲
 
 #### フロントエンド機能追加
-1. `chat.html`: UI要素追加
-2. `src/chat.ts`: ロジック実装
-3. `src/preload.ts`: 必要に応じてAPI追加
+1. `chat.html` または `initial-setup.html`: UI要素追加
+2. `src/chat.ts` または `src/initial-setup.ts`: ロジック実装
+3. `src/preload.ts` または `src/initial-setup-preload.ts`: 必要に応じてAPI追加
 4. `src/ipc-handlers.ts`: バックエンドハンドラー追加
 
 #### AI機能拡張
 1. `src/ai-manager.ts`: ワークフロー変更
 2. `src/ai-service.ts`: サービスロジック追加
 3. `src/conversation-manager.ts`: 履歴管理拡張
+
+#### 設定機能拡張
+1. `src/settings-manager.ts`: 設定ロジック追加
+2. `src/database-migrations-config.ts`: 必要に応じてマイグレーション追加
 
 #### データベース変更
 1. `src/database-migrations-config.ts`: マイグレーション定義
