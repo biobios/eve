@@ -6,6 +6,8 @@
 import { SqliteSaver } from "@langchain/langgraph-checkpoint-sqlite";
 import { app } from 'electron';
 import * as path from 'path';
+import { DatabaseMigrator } from './database-migration';
+import { conversationMigrations } from './database-migrations-config';
 
 export interface SessionInfo {
     id: string;
@@ -16,12 +18,16 @@ export interface SessionInfo {
 
 export class SessionStorage {
     private checkpointer: SqliteSaver | null = null;
+    private migrator: DatabaseMigrator | null = null;
 
     /**
      * SQLiteチェックポインターを初期化
      */
     public async initialize(): Promise<boolean> {
         try {
+            // マイグレーションを実行
+            await this.runMigrations();
+
             // SqliteSaverを初期化（アプリのデータディレクトリを使用）
             const dbPath = path.join(app.getPath('userData'), 'conversations.db');
             this.checkpointer = SqliteSaver.fromConnString(dbPath);
@@ -29,6 +35,26 @@ export class SessionStorage {
         } catch (error) {
             console.error('SessionStorage initialization failed:', error);
             return false;
+        }
+    }
+
+    /**
+     * マイグレーションを実行
+     */
+    private async runMigrations(): Promise<void> {
+        if (!this.migrator) {
+            const dbPath = path.join(app.getPath('userData'), 'conversations.db');
+            this.migrator = new DatabaseMigrator({
+                name: 'conversations',
+                path: dbPath,
+                migrations: conversationMigrations
+            });
+        }
+
+        const result = await this.migrator.migrate();
+        if (!result.success) {
+            console.error('Conversations database migration failed:', result.errors);
+            throw new Error('Failed to migrate conversations database');
         }
     }
 
@@ -153,5 +179,26 @@ export class SessionStorage {
      */
     public isInitialized(): boolean {
         return this.checkpointer !== null;
+    }
+
+    /**
+     * マイグレーションステータスを取得
+     */
+    public async getMigrationStatus(): Promise<ReturnType<DatabaseMigrator['getStatus']> | null> {
+        if (!this.migrator) {
+            await this.runMigrations();
+        }
+        return this.migrator?.getStatus() || null;
+    }
+
+    /**
+     * データベース接続を閉じる
+     */
+    public close(): void {
+        if (this.migrator) {
+            this.migrator.close();
+            this.migrator = null;
+        }
+        this.checkpointer = null;
     }
 }

@@ -1,16 +1,36 @@
 import { app } from 'electron';
 import { AIManager } from './ai-manager';
 import { ApiKeyStorage, DataEncryption, EncryptionKeyManager } from './crypto-utils';
+import { DatabaseManager } from './database-manager';
 import { IPCHandlers } from './ipc-handlers';
 import { SessionManager } from './session-manager';
 import { WindowManager } from './window-manager';
 
 // グローバルインスタンス
+let databaseManager: DatabaseManager | null = null;
 let apiKeyStorage: ApiKeyStorage | null = null;
 let aiManager: AIManager | null = null;
 let sessionManager: SessionManager | null = null;
 let ipcHandlers: IPCHandlers | null = null;
 let windowManager: WindowManager | null = null;
+
+// データベースシステムを初期化
+const initializeDatabaseSystem = async (): Promise<void> => {
+  try {
+    databaseManager = DatabaseManager.getInstance();
+    const result = await databaseManager.initialize();
+
+    if (!result.success) {
+      console.error('Database initialization failed:', result.errors);
+      throw new Error('Database system initialization failed');
+    }
+
+    console.log('Database system initialized successfully');
+  } catch (error) {
+    console.error('Failed to initialize database system:', error);
+    throw error;
+  }
+};
 
 // APIキーストレージを初期化
 const initializeApiKeyStorage = async (): Promise<void> => {
@@ -52,6 +72,9 @@ const initializeComponents = (): void => {
 
 // Electronの初期化が完了したときに実行
 app.whenReady().then(async () => {
+  // データベースシステムを初期化
+  await initializeDatabaseSystem();
+
   // APIキーストレージを初期化
   await initializeApiKeyStorage();
 
@@ -82,14 +105,15 @@ app.on('activate', () => {
 });
 
 // アプリケーション終了時の処理
-app.on('before-quit', (event) => {
+app.on('before-quit', async (event) => {
   console.log('Application is about to quit');
 
-  // データベース接続を閉じる
+  // データベースシステムをシャットダウン
   try {
-    EncryptionKeyManager.closeDatabase();
-    ApiKeyStorage.closeDatabase();
+    if (databaseManager) {
+      await databaseManager.shutdown();
+    }
   } catch (error) {
-    console.error('Error closing databases:', error);
+    console.error('Error during database shutdown:', error);
   }
 });

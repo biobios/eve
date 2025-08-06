@@ -28,6 +28,12 @@ interface ElectronAPI {
     getSessions: () => Promise<ChatSession[]>;
     deleteSession: (sessionId: string) => Promise<boolean>;
 
+    // データベース管理
+    getDatabaseStatus: () => Promise<any>;
+    databaseHealthCheck: () => Promise<any>;
+    createDatabaseBackup: () => Promise<any>;
+    forceMigration: () => Promise<any>;
+
     // イベントリスナー
     onAiInitialized: (callback: (initialized: boolean) => void) => () => void;
 
@@ -59,6 +65,12 @@ const electronAPI: ElectronAPI = {
     switchSession: (sessionId: string) => ipcRenderer.invoke('switch-session', sessionId),
     getSessions: () => ipcRenderer.invoke('get-sessions'),
     deleteSession: (sessionId: string) => ipcRenderer.invoke('delete-session', sessionId),
+
+    // データベース管理
+    getDatabaseStatus: () => ipcRenderer.invoke('get-database-status'),
+    databaseHealthCheck: () => ipcRenderer.invoke('database-health-check'),
+    createDatabaseBackup: () => ipcRenderer.invoke('create-database-backup'),
+    forceMigration: () => ipcRenderer.invoke('force-migration'),
 
     // イベントリスナー
     onAiInitialized: (callback: (initialized: boolean) => void) => {

@@ -6,6 +6,7 @@
 import { ipcMain, IpcMainInvokeEvent } from 'electron';
 import { AIManager } from './ai-manager';
 import { ApiKeyStorage } from './crypto-utils';
+import { DatabaseManager } from './database-manager';
 import { SessionManager } from './session-manager';
 import { SessionInfo } from './session-storage';
 
@@ -28,6 +29,7 @@ export class IPCHandlers {
         this.setupSessionHandlers();
         this.setupChatHandlers();
         this.setupUtilityHandlers();
+        this.setupDatabaseHandlers();
     }
 
     /**
@@ -42,7 +44,7 @@ export class IPCHandlers {
         // 保存されたAPIキーが存在するかチェック
         ipcMain.handle('has-saved-api-key', async (_event: IpcMainInvokeEvent) => {
             try {
-                const savedKey = this.apiKeyStorage.getApiKey('gemini');
+                const savedKey = await this.apiKeyStorage.getApiKey('gemini');
                 return savedKey !== null;
             } catch (error) {
                 console.error('Error checking saved API key:', error);
@@ -53,7 +55,7 @@ export class IPCHandlers {
         // 保存されたAPIキーを削除
         ipcMain.handle('delete-saved-api-key', async (_event: IpcMainInvokeEvent) => {
             try {
-                this.apiKeyStorage.deleteApiKey('gemini');
+                await this.apiKeyStorage.deleteApiKey('gemini');
                 console.log('Saved API key deleted');
                 return true;
             } catch (error) {
@@ -150,6 +152,88 @@ export class IPCHandlers {
         // バージョン情報を取得するハンドラー
         ipcMain.handle('get-version', async (_event: IpcMainInvokeEvent) => {
             return process.versions.electron;
+        });
+    }
+
+    /**
+     * データベース関連のハンドラーを設定
+     */
+    private setupDatabaseHandlers(): void {
+        // データベースの状態を取得
+        ipcMain.handle('get-database-status', async (_event: IpcMainInvokeEvent) => {
+            try {
+                const dbManager = DatabaseManager.getInstance();
+                return {
+                    success: true,
+                    initialized: dbManager.isSystemInitialized(),
+                    migrationInfo: dbManager.getMigrationInfo()
+                };
+            } catch (error) {
+                console.error('Error getting database status:', error);
+                return {
+                    success: false,
+                    error: error instanceof Error ? error.message : 'Unknown error'
+                };
+            }
+        });
+
+        // データベースのヘルスチェック
+        ipcMain.handle('database-health-check', async (_event: IpcMainInvokeEvent) => {
+            try {
+                const dbManager = DatabaseManager.getInstance();
+                const healthCheck = await dbManager.healthCheck();
+                return {
+                    success: true,
+                    ...healthCheck
+                };
+            } catch (error) {
+                console.error('Database health check failed:', error);
+                return {
+                    success: false,
+                    overall: false,
+                    databases: {},
+                    error: error instanceof Error ? error.message : 'Unknown error'
+                };
+            }
+        });
+
+        // データベースバックアップを作成
+        ipcMain.handle('create-database-backup', async (_event: IpcMainInvokeEvent) => {
+            try {
+                const dbManager = DatabaseManager.getInstance();
+                const result = await dbManager.createBackup();
+                return {
+                    success: result.success,
+                    backupPaths: result.backupPaths,
+                    errors: result.errors
+                };
+            } catch (error) {
+                console.error('Database backup failed:', error);
+                return {
+                    success: false,
+                    backupPaths: [],
+                    errors: [error instanceof Error ? error.message : 'Unknown error']
+                };
+            }
+        });
+
+        // 開発用: マイグレーションを強制実行
+        ipcMain.handle('force-migration', async (_event: IpcMainInvokeEvent) => {
+            try {
+                const dbManager = DatabaseManager.getInstance();
+                const result = await dbManager.forceMigration();
+                return {
+                    success: result.success,
+                    results: result.results
+                };
+            } catch (error) {
+                console.error('Force migration failed:', error);
+                return {
+                    success: false,
+                    results: {},
+                    error: error instanceof Error ? error.message : 'Unknown error'
+                };
+            }
         });
     }
 }

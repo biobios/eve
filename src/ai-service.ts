@@ -23,7 +23,7 @@ export class AIService {
         }
 
         try {
-            const savedApiKey = this.apiKeyStorage.getApiKey('gemini');
+            const savedApiKey = await this.apiKeyStorage.getApiKey('gemini');
             if (savedApiKey) {
                 console.log('Found saved API key, initializing AI...');
                 return await this.initialize(savedApiKey);
@@ -47,7 +47,7 @@ export class AIService {
 
             // APIキーを保存する場合
             if (saveKey && this.apiKeyStorage) {
-                this.apiKeyStorage.saveApiKey('gemini', apiKey);
+                await this.apiKeyStorage.saveApiKey('gemini', apiKey);
                 console.log('API key saved to storage');
             }
 
