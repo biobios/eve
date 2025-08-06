@@ -10,35 +10,49 @@
 **開発言語**: TypeScript  
 **フレームワーク**: Electron  
 **AI/ML**: LangChain + LangGraph + Google Gemini API  
+**データベース**: SQLite（マイグレーション管理システム搭載）
+**セキュリティ**: 多層暗号化システム
 
 ## 🎯 プロジェクトの目的
 
 Eveは以下の機能を提供するデスクトップアプリケーションです：
 - **Google Gemini AIとのチャット機能**: Gemini 1.5 Flash モデルによる高度な対話
-- **セッション管理**: 複数の会話を並行管理、セッション別履歴保存
+- **高度なセッション管理**: 複数の会話並行管理、メタデータ付き履歴保存
 - **会話履歴の永続化**: SQLiteベースの安全なローカル保存
-- **APIキーの暗号化保存**: Electronの安全な暗号化機能を活用
-- **レスポンシブUI**: ガラスモーフィズムデザインによるモダンな見た目
+- **企業級セキュリティ**: 多層暗号化によるAPIキー保護
+- **自動データベース管理**: マイグレーション、バックアップ、ヘルスチェック機能
+- **モダンUI**: ガラスモーフィズムデザインによる美しいインターフェース
 - **セキュアな通信**: プリロードスクリプトによる安全なIPC通信
 - **クロスプラットフォーム対応**: Windows、macOS、Linux対応
 - **リアルタイム状態管理**: 接続状態、ローディング状態の表示
 - **確認ダイアログ**: 重要操作での安全性確保
-- **自動セッション命名**: 最初のメッセージから自動でセッション名生成
+- **インテリジェント機能**: 自動セッション命名、統計情報収集
 
 ## 🏗️ アーキテクチャ
 
 ### メインコンポーネント
-1. **メインプロセス** (`src/main.ts`): Electronアプリの起動、コンポーネント統合、ライフサイクル管理
-2. **AIマネージャー** (`src/ai-manager.ts`): Google Gemini AI統合、LangGraph実装、会話履歴管理
-3. **IPCハンドラー** (`src/ipc-handlers.ts`): プロセス間通信の集約、APIエンドポイント管理
-4. **セッションマネージャー** (`src/session-manager.ts`): セッション状態管理、ID生成
-5. **ウィンドウマネージャー** (`src/window-manager.ts`): Electronウィンドウの作成と管理
-6. **暗号化ユーティリティ** (`src/crypto-utils.ts`): APIキーの安全な保存、暗号化処理
-7. **プリロードスクリプト** (`src/preload.ts`): セキュアなフロントエンド-バックエンドAPI
-8. **フロントエンド** (`src/chat.ts`): チャットUI、セッション管理、ユーザーインタラクション
-9. **HTMLファイル**: 
-   - `index.html`: ランディングページ（システム情報、機能紹介）
-   - `chat.html`: チャットインターフェース（AI会話、セッション管理）
+1. **メインプロセス** (`src/main.ts` - 98行): Electronアプリの起動、コンポーネント統合、ライフサイクル管理
+2. **データベース管理システム**: 
+   - **DatabaseManager** (`src/database-manager.ts` - 214行): 統合データベース管理
+   - **MigrationManager** (`src/database-migration.ts` - 284行): マイグレーション自動実行
+   - **MigrationConfig** (`src/database-migrations-config.ts` - 261行): スキーマ定義
+3. **AIシステム**:
+   - **AIManager** (`src/ai-manager.ts` - 103行): Google Gemini AI統合、LangGraph実装
+   - **AIService** (`src/ai-service.ts` - 70行): AI処理サービス
+   - **ConversationManager** (`src/conversation-manager.ts` - 97行): 会話履歴管理
+4. **セッション管理**:
+   - **SessionManager** (`src/session-manager.ts` - 70行): セッション状態管理、ID生成
+   - **SessionStorage** (`src/session-storage.ts` - 180行): セッションデータ永続化
+5. **セキュリティシステム** (`src/crypto-utils.ts` - 257行): 多層暗号化、APIキー保護
+6. **通信層**:
+   - **IPCハンドラー** (`src/ipc-handlers.ts` - 213行): プロセス間通信の集約
+   - **プリロードスクリプト** (`src/preload.ts` - 79行): セキュアなフロントエンド-バックエンドAPI
+7. **UI層**:
+   - **ウィンドウマネージャー** (`src/window-manager.ts` - 92行): Electronウィンドウの作成と管理
+   - **フロントエンド** (`src/chat.ts` - 458行): チャットUI、セッション管理、ユーザーインタラクション
+8. **HTMLファイル**: 
+   - `index.html` (140行): ランディングページ（システム情報、機能紹介）
+   - `chat.html` (520行): チャットインターフェース（AI会話、セッション管理）
 
 ### 技術スタック
 ```
@@ -48,25 +62,29 @@ Eveは以下の機能を提供するデスクトップアプリケーション�
 └── chat.ts (458行): チャットロジック、セッション管理UI
 
 Electron IPC: プリロードスクリプトによるセキュアな通信
-├── preload.ts (70行): セキュアAPI、型安全な通信インターフェース
-├── ipc-handlers.ts (132行): IPCハンドラー集約、エンドポイント管理
-└── main.ts (78行): アプリ起動、コンポーネント統合
+├── preload.ts (79行): セキュアAPI、型安全な通信インターフェース
+├── ipc-handlers.ts (213行): IPCハンドラー集約、エンドポイント管理
+└── main.ts (98行): アプリ起動、コンポーネント統合
 
-バックエンド: Node.js + TypeScript
-├── ai-manager.ts (219行): AI統合、LangGraphワークフロー
+データベースシステム: SQLite + 自動マイグレーション
+├── database-manager.ts (214行): 統合管理、ヘルスチェック、バックアップ
+├── database-migration.ts (284行): マイグレーション自動実行、ロールバック
+├── database-migrations-config.ts (261行): スキーマ定義、バージョン管理
+└── session-storage.ts (180行): セッションデータ永続化
+
+AIシステム: LangChain + LangGraph + Google Gemini
+├── ai-manager.ts (103行): AI統合、LangGraphワークフロー
+├── ai-service.ts (70行): AI処理サービス
+├── conversation-manager.ts (97行): 会話履歴管理
+└── Google Gemini 1.5 Flash モデル
+
+セキュリティシステム: 多層暗号化
+├── crypto-utils.ts (257行): 暗号化キー管理、データ暗号化、APIキー保存
+└── Electron safeStorage + crypto-js AES連携
+
+セッション管理: UUID + メタデータ
 ├── session-manager.ts (70行): セッション状態管理
-├── window-manager.ts (92行): ウィンドウ管理、セキュリティ設定
-└── crypto-utils.ts (204行): 暗号化、APIキー保存
-
-AI処理: LangChain + LangGraph + Google Gemini
-├── Google Gemini 1.5 Flash モデル
-├── LangGraph ワークフロー（状態管理、会話フロー）
-└── HumanMessage ベースのメッセージング
-
-データ永続化: SQLite (LangGraph checkpoint)
-├── 会話履歴の永続化
-├── セッション別データ管理
-└── 暗号化されたAPIキー保存
+└── 会話履歴、統計情報、カスタム名前付け
 
 パッケージング: Electron Builder
 ├── Windows (NSIS)、macOS (DMG)、Linux (AppImage)
@@ -105,71 +123,115 @@ npm start
 # 開発モード（ログ有効）
 npm run dev
 
-# ウォッチ開発モード
+# ウォッチ開発モード（推奨）
 npm run dev:watch
 
 # ビルドファイルクリーンアップ
 npm run clean
+
+# 配布用ビルド
+npm run build        # 全プラットフォーム
+npm run build:win    # Windows (NSIS)
+npm run build:mac    # macOS (DMG)
+npm run build:linux  # Linux (AppImage)
 ```
 
 ## 🧩 主要ファイルの役割
 
-### `src/main.ts` (78行)
+### コアシステム
+#### `src/main.ts` (98行)
 - Electronアプリケーションの起動とライフサイクル管理
-- コンポーネントの初期化と統合
-- APIキーストレージ、AIマネージャー、セッションマネージャーの組み立て
+- 全コンポーネントの初期化と統合
+- DatabaseManager、AIManager、SessionManagerの組み立て
 - セキュリティ設定とハンドラー設定
 
-### `src/ai-manager.ts` (219行)
+#### `src/database-manager.ts` (214行)
+- 複数データベースの統合管理
+- 自動マイグレーション実行とヘルスチェック
+- データベースバックアップ機能
+- 開発用ロールバック機能
+
+#### `src/database-migration.ts` (284行)
+- マイグレーション自動実行システム
+- トランザクション管理とロールバック機能
+- スキーマバージョン管理
+- エラーハンドリングと状態追跡
+
+#### `src/database-migrations-config.ts` (261行)
+- 全データベースのマイグレーション定義
+- スキーマ変更履歴の管理
+- 暗号化、APIキー、会話履歴データベース設定
+
+### AIシステム
+#### `src/ai-manager.ts` (103行)
 - Google Gemini AI の初期化と管理
 - LangGraph ワークフローの実装
 - セッション単位での会話履歴管理
-- SQLite checkpointer を使用した永続化
 - AI応答の生成とエラーハンドリング
 
-### `src/ipc-handlers.ts` (132行)
+#### `src/ai-service.ts` (70行)
+- AI処理サービスの抽象化
+- Gemini APIとの低レベル通信
+- レスポンス処理とフォーマット
+
+#### `src/conversation-manager.ts` (97行)
+- 会話履歴の管理とメタデータ処理
+- セッション統計情報の収集
+- 会話検索とフィルタリング機能
+
+### セッション・ストレージ
+#### `src/session-manager.ts` (70行)
+- セッション作成と管理
+- 現在のセッション状態追跡
+- セッションIDの生成とバリデーション
+
+#### `src/session-storage.ts` (180行)
+- セッションデータの永続化
+- 会話履歴の効率的な保存・読み込み
+- データベース接続の管理
+
+### セキュリティ
+#### `src/crypto-utils.ts` (257行)
+- 暗号化キー管理（EncryptionKeyManager）
+- 多層データ暗号化・復号化（DataEncryption）
+- APIキーの安全な保存と読み込み（ApiKeyStorage）
+- ElectronのsafeStorageとcrypto-js連携
+
+### 通信・UI管理
+#### `src/ipc-handlers.ts` (213行)
 - IPC（プロセス間通信）ハンドラーの集約
 - API キー管理ハンドラー（設定、削除、確認）
 - チャット機能ハンドラー（メッセージ送信、履歴取得）
 - セッション管理ハンドラー（作成、切り替え、削除）
+- データベース管理ハンドラー（ヘルスチェック、バックアップ）
 
-### `src/chat.ts` (458行) 
+#### `src/window-manager.ts` (92行)
+- Electronウィンドウの作成と管理
+- セキュリティ設定（nodeIntegration無効、contextIsolation有効）
+- ウィンドウのライフサイクル管理
+
+#### `src/preload.ts` (79行)
+- セキュアなフロントエンド-バックエンド通信API
+- IPC経由でメインプロセスの機能をフロントエンドに公開
+- 型安全なAPIインターフェース
+- イベントリスナーの管理
+
+### フロントエンド
+#### `src/chat.ts` (458行) 
 - チャットアプリケーションのフロントエンドロジック
 - チャットUI の制御（メッセージ表示、入力処理）
 - セッション管理UI（作成、切り替え、削除）
 - モーダルダイアログの制御
 - APIキー設定フローの管理
 
-### `src/crypto-utils.ts` (204行)
-- 暗号化キー管理（EncryptionKeyManager）
-- データ暗号化・復号化（DataEncryption）
-- APIキーの安全な保存と読み込み（ApiKeyStorage）
-- ElectronのsafeStorageとcrypto-js連携
-
-### `src/session-manager.ts` (70行)
-- セッション作成と管理
-- 現在のセッション状態追跡
-- セッションIDの生成とバリデーション
-
-### `src/window-manager.ts` (92行)
-- Electronウィンドウの作成と管理
-- セキュリティ設定（nodeIntegration無効、contextIsolation有効）
-- ウィンドウのライフサイクル管理
-
-### `src/preload.ts` (70行)
-- セキュアなフロントエンド-バックエンド通信API
-- IPC経由でメインプロセスの機能をフロントエンドに公開
-- 型安全なAPIインターフェース
-- イベントリスナーの管理
-
-### `chat.html` (520行)
+#### `chat.html` (520行)
 - メインのチャットインターフェース
 - モダンなレスポンシブデザイン（ガラスモーフィズム）
 - セッション管理UI
 - モーダルダイアログ（セッション作成、確認）
 - リアルタイムステータス表示
 
-### `index.html` (140行)
+#### `index.html` (140行)
 - ランディングページ
 - システム情報表示（Node.js、Electron、Chromiumバージョン）
 - 機能紹介とナビゲーション
@@ -177,6 +239,7 @@ npm run clean
 
 ## 🔄 データフロー
 
+### 基本チャットフロー
 ```
 1. ユーザー入力 (chat.html)
     ↓
@@ -190,20 +253,35 @@ npm run clean
     ↓
 6. AIマネージャー (ai-manager.ts) - LangGraph + Gemini AI処理
     ↓
-7. セッションマネージャー (session-manager.ts) - セッション状態管理
+7. ConversationManager - 会話履歴管理
     ↓
-8. SQLite永続化 - 会話履歴、checkpointer
+8. SessionStorage - SQLite永続化
     ↓
 9. レスポンス返却（逆順）
     ↓
 10. UIアップデート (chat.ts) - メッセージ表示、状態更新
 ```
 
+### データベース管理フロー
+```
+アプリ起動 → DatabaseManager初期化 → 自動マイグレーション実行 → ヘルスチェック
+         ↓
+マイグレーション実行 → トランザクション開始 → スキーマ変更 → バージョン記録 → コミット
+         ↓
+エラー発生時 → ロールバック → エラーログ → 安全な状態復帰
+```
+
 ### セッション管理フロー
 ```
-セッション作成 → UUID生成 → SQLite初期化 → UI更新
-セッション切り替え → 履歴ロード → UI状態変更 → 会話復元
-セッション削除 → 確認ダイアログ → SQLiteクリア → UI更新
+セッション作成 → UUID生成 → SQLite初期化 → SessionManager登録 → UI更新
+セッション切り替え → 履歴ロード → ConversationManager復元 → UI状態変更 → 会話復元
+セッション削除 → 確認ダイアログ → SQLiteクリア → SessionManager更新 → UI更新
+```
+
+### セキュリティフロー
+```
+APIキー設定 → 入力検証 → ElectronSafeStorage暗号化 → crypto-js二次暗号化 → SQLite保存
+APIキー取得 → SQLite読み込み → crypto-js復号化 → ElectronSafeStorage復号化 → 使用
 ```
 
 ## 🎨 デザインテーマ
@@ -225,33 +303,60 @@ npm run clean
 2. **Electronセキュリティ**: プリロードスクリプトによるセキュアな通信
 3. **非同期処理**: async/await パターンの徹底
 4. **エラーハンドリング**: try-catch による適切な例外処理
+5. **データベース整合性**: トランザクション使用の徹底
+6. **暗号化原則**: 機密データの多層保護
 
 ### ファイル構造の維持
-- `src/`: TypeScriptソースコード
-  - `main.ts`: アプリケーション起動とコンポーネント統合
-  - `ai-manager.ts`: AI処理とLangGraphワークフロー
-  - `ipc-handlers.ts`: IPC通信ハンドラー集約
-  - `session-manager.ts`: セッション管理
-  - `window-manager.ts`: ウィンドウ管理
-  - `crypto-utils.ts`: 暗号化とAPIキー保存
-  - `preload.ts`: セキュアAPI公開
-  - `chat.ts`: フロントエンドロジック
+- `src/`: TypeScriptソースコード（総計約3,100行）
+  - **コアシステム**: `main.ts`, `database-manager.ts`, `database-migration.ts`
+  - **AIシステム**: `ai-manager.ts`, `ai-service.ts`, `conversation-manager.ts` 
+  - **セッション管理**: `session-manager.ts`, `session-storage.ts`
+  - **セキュリティ**: `crypto-utils.ts`
+  - **通信**: `ipc-handlers.ts`, `preload.ts`, `window-manager.ts`
+  - **フロントエンド**: `chat.ts`
+  - **設定**: `database-migrations-config.ts`
 - `dist/`: コンパイル後のJavaScript（自動生成）
 - `docs/`: ドキュメント
+  - `AI_AGENT_GUIDE.md`: AIエージェント作業ガイド（本文書）
+  - `TECHNICAL_REFERENCE.md`: 技術詳細リファレンス
+  - `DEVELOPMENT_GUIDE.md`: 開発者向けガイド
 - `assets/`: リソースファイル
 - ルートディレクトリ: HTML、設定ファイル
 
-### 依存関係管理
-- LangChain関連パッケージのバージョン整合性を保つ
-- Electronのセキュリティアップデートに注意
-- TypeScript型定義の一貫性を維持
-- 新機能追加時は依存関係の影響を検証
+### 依存関係管理（2025年8月6日現在）
+- **プロダクション依存関係**:
+  - `@langchain/core@^0.3.66`, `@langchain/google-genai@^0.2.16`, `@langchain/langgraph@^0.4.2`: AI機能
+  - `@langchain/langgraph-checkpoint-sqlite@^0.2.0`: 会話履歴の永続化
+  - `langchain@^0.3.30`: LangChainフレームワーク
+  - `uuid@^11.1.0`: セッションID生成
+  - `better-sqlite3@^12.2.0`: SQLiteデータベース
+  - `crypto-js@^4.2.0`: 暗号化処理
+
+- **開発依存関係**:
+  - `electron@^37.2.5`: Electronフレームワーク
+  - `typescript@^5.9.2`: TypeScript コンパイラ
+  - `electron-builder@^26.0.12`: アプリケーションパッケージング
+  - `concurrently@^9.2.0`, `wait-on@^8.0.4`: 開発ワークフロー支援
+  - `@types/*`: TypeScript型定義
+
+### データベース開発要件
+- **マイグレーション**: 新機能は必ずマイグレーションを通じて実装
+- **トランザクション**: データ整合性のため全変更でトランザクション使用
+- **バックアップ**: 重要な変更前は自動バックアップ実行
+- **テスト**: マイグレーションは up/down 両方向でテスト
 
 ### セキュリティ要件
-- APIキーの暗号化保存（crypto-js + Electron safeStorage）
-- contextIsolation有効、nodeIntegration無効
-- プリロードスクリプトによるセキュアAPI公開
-- IPCハンドラーでの入力検証とエラーハンドリング
+- **APIキー**: 必ず多層暗号化で保存（Electron safeStorage + crypto-js）
+- **contextIsolation**: 有効状態を維持
+- **nodeIntegration**: 無効状態を維持
+- **プリロードスクリプト**: セキュアAPIのみ公開
+- **入力検証**: IPCハンドラーでの厳密な検証とサニタイズ
+
+### AI開発要件
+- **LangGraph**: 状態管理とワークフローを活用
+- **Checkpointer**: SQLiteベースで会話履歴を自動保存
+- **エラーハンドリング**: AI API障害に対する適切な復旧処理
+- **セッション分離**: セッション間でのデータ混在防止
 
 ## 🔍 デバッグとテスト
 
@@ -274,6 +379,9 @@ npm start
 
 # クリーンビルド
 npm run clean && npm run build:ts
+
+# 配布用ビルド
+npm run build
 ```
 
 ### VS Codeデバッグ
@@ -289,60 +397,105 @@ npm run clean && npm run build:ts
 - AI API呼び出しのログ
 - セッション管理の状態変化追跡
 - SQLiteクエリのデバッグ情報
+- データベースマイグレーションの詳細ログ
+- 暗号化・復号化処理のトレース
+
+### データベース管理
+- **ヘルスチェック**: アプリ内でのデータベース状態確認
+- **マイグレーション状態**: 各データベースのバージョン確認
+- **自動バックアップ**: 重要な操作前の自動バックアップ
+- **ロールバック**: 問題のあるマイグレーションの巻き戻し
 
 ## 🚀 デプロイメント
 
 ### パッケージング
 ```bash
-npm run build        # 全プラットフォーム
-npm run build:win    # Windows (NSIS)
-npm run build:mac    # macOS (DMG)
-npm run build:linux  # Linux (AppImage)
+# 全プラットフォームビルド
+npm run build
+
+# プラットフォーム別ビルド
+npm run build:win      # Windows (NSIS)
+npm run build:mac      # macOS (DMG) 
+npm run build:linux    # Linux (AppImage)
+
+# 開発用パッケージング（インストーラーなし）
+npm run pack
 ```
+
+### 配布成果物
+- **Windows**: 
+  - `dist/Eve Setup.exe` (NISインストーラー)
+  - アーキテクチャ: x64, ia32
+- **macOS**:
+  - `dist/Eve.dmg` (DMGパッケージ)
+  - アーキテクチャ: x64, arm64 (Universal Binary)
+- **Linux**:
+  - `dist/Eve.AppImage` (AppImageポータブル)
+  - アーキテクチャ: x64
 
 ## ⚠️ 注意事項
 
-1. **APIキー管理**: Google Gemini APIキーはユーザーが設定する仕様、暗号化保存対応
+1. **APIキー管理**: Google Gemini APIキーはユーザーが設定する仕様、多層暗号化保存対応
 2. **データプライバシー**: 会話履歴はローカルSQLiteに保存、外部送信なし
 3. **セキュリティ**: プリロードスクリプトによるセキュアAPI、contextIsolation有効
-4. **クロスプラットフォーム**: パスやファイル操作に注意、Electronビルダー対応
-5. **メモリ管理**: Electronの特性を考慮したリソース管理、長時間実行対応
-6. **エラーハンドリング**: 各層でのtry-catch、ユーザーフレンドリーなエラーメッセージ
-7. **セッション管理**: 複数セッション並行、UUIDベースのID管理
+4. **データベース整合性**: マイグレーション機能により自動スキーマ管理、手動変更禁止
+5. **クロスプラットフォーム**: パスやファイル操作に注意、Electronビルダー対応
+6. **メモリ管理**: Electronの特性を考慮したリソース管理、長時間実行対応
+7. **エラーハンドリング**: 各層でのtry-catch、ユーザーフレンドリーなエラーメッセージ
+8. **セッション管理**: 複数セッション並行、UUIDベースのID管理
+9. **マイグレーション**: up/downマイグレーションの両方向実装必須
+10. **暗号化**: APIキーは必ず二重暗号化（ElectronSafeStorage + crypto-js）で保存
 
 ## 📚 関連ドキュメント
 
-- [README.md](../README.md): プロジェクトの基本情報
+- [README.md](../README.md): プロジェクトの基本情報と使用方法
+- [TECHNICAL_REFERENCE.md](./TECHNICAL_REFERENCE.md): 技術詳細リファレンス（統計情報、アーキテクチャ詳細）
+- [DEVELOPMENT_GUIDE.md](./DEVELOPMENT_GUIDE.md): 開発者向けガイド（セットアップ、デバッグ、トラブルシューティング）
 - [TYPESCRIPT.md](./TYPESCRIPT.md): TypeScript開発詳細ガイド
-- [package.json](../package.json): 依存関係とスクリプト
+- [package.json](../package.json): 依存関係とスクリプト（最新版）
 - [tsconfig.json](../tsconfig.json): TypeScript設定
 
 ## 🆘 トラブルシューティング
 
-### よくある問題
+### よくある問題（2025年8月6日版）
 1. **TypeScriptコンパイルエラー**: 型定義の不整合、tsconfig.json設定確認
 2. **Electron起動失敗**: メインプロセスのパスエラー、distフォルダ確認
 3. **AI API接続エラー**: APIキー設定またはネットワーク問題
-4. **SQLiteエラー**: データベースファイルの権限問題、パス確認
-5. **IPC通信エラー**: プリロードスクリプトの型不整合、ハンドラー未登録
-6. **セッション管理エラー**: UUID生成失敗、checkpointer初期化問題
-7. **暗号化エラー**: safeStorage利用不可、キー管理問題
+4. **データベースマイグレーションエラー**: スキーマ変更失敗、バックアップから復旧
+5. **SQLiteファイル権限エラー**: データベースファイルの権限問題、パス確認
+6. **IPC通信エラー**: プリロードスクリプトの型不整合、ハンドラー未登録
+7. **セッション管理エラー**: UUID生成失敗、checkpointer初期化問題
+8. **暗号化エラー**: safeStorage利用不可、キー管理問題
+9. **マイグレーションロールバック必要**: 不正なスキーマ変更、手動復旧
+10. **セキュリティコンテキストエラー**: contextIsolation設定問題
 
 ### 解決手順
 1. `npm run clean` でビルドファイルクリア
 2. `npm run build:ts` で再コンパイル
 3. VS Codeの問題パネルでエラー確認
 4. 開発者ツールでランタイムエラー調査
-5. ログファイル確認（コンソール出力）
-6. 依存関係の再インストール（`npm install`）
-7. Electronキャッシュクリア（`%APPDATA%/eve`削除）
+5. データベースヘルスチェック実行（アプリ内機能）
+6. マイグレーションステータス確認
+7. バックアップからの復旧（必要に応じて）
+8. ログファイル確認（コンソール出力）
+9. 依存関係の再インストール（`npm install`）
+10. Electronキャッシュクリア（`%APPDATA%/eve`削除）
+
+### 緊急時対応
+- **データベース破損**: 自動バックアップからの復旧機能を使用
+- **マイグレーション失敗**: ロールバック機能で前バージョンに復帰
+- **暗号化キー紛失**: 新規インストール手順で復旧（データ損失あり）
+
+### 詳細なトラブルシューティング
+詳細な開発環境での問題解決については、[DEVELOPMENT_GUIDE.md](./DEVELOPMENT_GUIDE.md) のトラブルシューティングセクションを参照してください。
 
 ---
 
-**このドキュメントは、AIエージェントがEveプロジェクトで効率的に作業するための包括的なガイドです。作業開始前に必ずこのドキュメントを参照してください。**
+**このドキュメントは、AIエージェントがEveプロジェクトで効率的に作業するための包括的なガイドです。作業開始前に必ずこのドキュメントを参照し、技術詳細が必要な場合は関連ドキュメントを確認してください。**
 
 ---
 *最終更新: 2025年8月6日*  
 *プロジェクトバージョン: 1.0.0*  
+*総コード行数: 約3,100行*  
 *対応Node.js: v14以上*  
 *対応Electron: ^37.2.5*
