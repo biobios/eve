@@ -1,41 +1,45 @@
 /**
  * AI管理クラス
- * Google Gemini AIとLangGraphワークフローの初期化・管理を担当
+ * 各コンポーネントを統合してAI機能を提供する薄いラッパー
  */
 
-import { HumanMessage } from "@langchain/core/messages";
-import { ChatGoogleGenerativeAI } from '@langchain/google-genai';
-import { MessagesAnnotation, StateGraph } from "@langchain/langgraph";
 import { SqliteSaver } from "@langchain/langgraph-checkpoint-sqlite";
-import { app } from 'electron';
-import * as path from 'path';
+import { AIService } from './ai-service';
+import { ConversationManager } from './conversation-manager';
 import { ApiKeyStorage } from './crypto-utils';
+import { SessionInfo, SessionStorage } from './session-storage';
 
 export class AIManager {
-    private chatModel: ChatGoogleGenerativeAI | null = null;
-    private workflow: any = null;
-    private checkpointer: SqliteSaver | null = null;
-    private apiKeyStorage: ApiKeyStorage | null = null;
+    private aiService: AIService;
+    private sessionStorage: SessionStorage;
+    private conversationManager: ConversationManager;
 
     constructor(apiKeyStorage: ApiKeyStorage) {
-        this.apiKeyStorage = apiKeyStorage;
+        this.aiService = new AIService(apiKeyStorage);
+        this.sessionStorage = new SessionStorage();
+        this.conversationManager = new ConversationManager(this.aiService, this.sessionStorage);
     }
 
     /**
      * 保存されたAPIキーを使用してAIを初期化
      */
     public async initializeFromStorage(): Promise<boolean> {
-        if (!this.apiKeyStorage) {
-            return false;
-        }
-
         try {
-            const savedApiKey = this.apiKeyStorage.getApiKey('gemini');
-            if (savedApiKey) {
-                console.log('Found saved API key, initializing AI...');
-                return await this.initialize(savedApiKey);
+            // AIサービスの初期化
+            const aiInitialized = await this.aiService.initializeFromStorage();
+            if (!aiInitialized) {
+                return false;
             }
-            return false;
+
+            // セッションストレージの初期化
+            const sessionInitialized = await this.sessionStorage.initialize();
+            if (!sessionInitialized) {
+                return false;
+            }
+
+            // 会話マネージャーの初期化
+            const conversationInitialized = await this.conversationManager.initialize();
+            return conversationInitialized;
         } catch (error) {
             console.error('Failed to initialize AI from storage:', error);
             return false;
@@ -47,25 +51,21 @@ export class AIManager {
      */
     public async initialize(apiKey: string, saveKey: boolean = false): Promise<boolean> {
         try {
-            this.chatModel = new ChatGoogleGenerativeAI({
-                model: "gemini-1.5-flash",
-                apiKey: apiKey
-            });
-
-            // SqliteSaverを初期化（アプリのデータディレクトリを使用）
-            const dbPath = path.join(app.getPath('userData'), 'conversations.db');
-            this.checkpointer = SqliteSaver.fromConnString(dbPath);
-
-            // LangGraphワークフローを作成
-            this.workflow = this.createChatWorkflow();
-
-            // APIキーを保存する場合
-            if (saveKey && this.apiKeyStorage) {
-                this.apiKeyStorage.saveApiKey('gemini', apiKey);
-                console.log('API key saved to storage');
+            // AIサービスの初期化
+            const aiInitialized = await this.aiService.initialize(apiKey, saveKey);
+            if (!aiInitialized) {
+                return false;
             }
 
-            return true;
+            // セッションストレージの初期化
+            const sessionInitialized = await this.sessionStorage.initialize();
+            if (!sessionInitialized) {
+                return false;
+            }
+
+            // 会話マネージャーの初期化
+            const conversationInitialized = await this.conversationManager.initialize();
+            return conversationInitialized;
         } catch (error) {
             console.error('AI initialization failed:', error);
             return false;
@@ -73,181 +73,46 @@ export class AIManager {
     }
 
     /**
-     * LangGraphワークフローを作成
-     */
-    private createChatWorkflow() {
-        // チャットノード: AIモデルを呼び出してレスポンスを生成
-        const chatNode = async (state: typeof MessagesAnnotation.State) => {
-            if (!this.chatModel) {
-                throw new Error('Chat model not initialized');
-            }
-
-            try {
-                const response = await this.chatModel.invoke(state.messages);
-                return { messages: [response] };
-            } catch (error) {
-                console.error('Chat node error:', error);
-                throw error;
-            }
-        };
-
-        // StateGraphを作成（checkpointerを設定）
-        const graph = new StateGraph(MessagesAnnotation)
-            .addNode("chat", chatNode)
-            .addEdge("__start__", "chat")
-            .addEdge("chat", "__end__");
-
-        return graph.compile({ checkpointer: this.checkpointer! });
-    }
-
-    /**
      * メッセージを送信してAIレスポンスを取得
      */
     public async sendMessage(message: string, sessionId: string): Promise<string> {
-        if (!this.workflow) {
-            throw new Error('AI workflow not initialized. Please set API key first.');
-        }
-
-        try {
-            // HumanMessageを作成
-            const humanMessage = new HumanMessage({ content: message });
-
-            // LangGraphワークフローを実行（SessionIDをthreadIdとして使用）
-            const result = await this.workflow.invoke(
-                { messages: [humanMessage] },
-                { configurable: { thread_id: sessionId } }
-            );
-
-            // 最後のメッセージ（AIの応答）を取得
-            const lastMessage = result.messages[result.messages.length - 1];
-
-            return lastMessage.content;
-        } catch (error) {
-            console.error('AI chat error:', error);
-            throw error;
-        }
+        return await this.conversationManager.sendMessage(message, sessionId);
     }
 
     /**
      * 会話履歴を取得
      */
     public async getConversationHistory(sessionId: string): Promise<any[]> {
-        if (!this.workflow || !this.checkpointer) {
-            return [];
-        }
-
-        try {
-            // checkpointerから会話履歴を取得
-            const checkpoint = await this.checkpointer.get({ configurable: { thread_id: sessionId } });
-
-            if (checkpoint && checkpoint.channel_values && checkpoint.channel_values.messages) {
-                const messages = checkpoint.channel_values.messages;
-                if (Array.isArray(messages)) {
-                    return messages.map((msg: any) => ({
-                        type: msg._getType() === 'human' ? 'user' : 'ai',
-                        content: msg.content,
-                        timestamp: new Date() // 実際のタイムスタンプの実装は追加できます
-                    }));
-                }
-            }
-
-            return [];
-        } catch (error) {
-            console.error('Get conversation history error:', error);
-            return [];
-        }
+        return await this.sessionStorage.getConversationHistory(sessionId);
     }
 
     /**
      * セッションを削除
      */
     public async deleteSession(sessionId: string): Promise<boolean> {
-        try {
-            // SQLiteからセッションデータを永久削除
-            if (this.checkpointer) {
-                await this.checkpointer.deleteThread(sessionId);
-            }
-            return true;
-        } catch (error) {
-            console.error('Delete session error:', error);
-            return false;
-        }
+        return await this.sessionStorage.deleteSession(sessionId);
     }
 
     /**
      * 全セッションの情報を取得
      */
-    public async getAllSessions(): Promise<any[]> {
-        if (!this.checkpointer) {
-            return [];
-        }
-
-        try {
-            const sessions: any[] = [];
-            const checkpoints = await this.checkpointer.list({});
-            const seenThreadIds = new Set<string>();
-
-            for await (const checkpoint of checkpoints) {
-                if (checkpoint.config && checkpoint.config.configurable && checkpoint.config.configurable.thread_id) {
-                    const sessionId = checkpoint.config.configurable.thread_id;
-
-                    // 重複を避ける
-                    if (seenThreadIds.has(sessionId)) {
-                        continue;
-                    }
-                    seenThreadIds.add(sessionId);
-
-                    // 会話履歴を取得してセッション名を決定
-                    let sessionName = '新しい会話';
-                    try {
-                        const fullCheckpoint = await this.checkpointer.get({ configurable: { thread_id: sessionId } });
-                        if (fullCheckpoint && fullCheckpoint.channel_values && fullCheckpoint.channel_values.messages) {
-                            const messages = fullCheckpoint.channel_values.messages;
-                            if (Array.isArray(messages) && messages.length > 0) {
-                                // 最初のユーザーメッセージを探す
-                                const firstUserMessage = messages.find((msg: any) => msg._getType() === 'human');
-                                if (firstUserMessage && firstUserMessage.content) {
-                                    // 最初の30文字を取得（改行や余分な空白を除去）
-                                    const content = firstUserMessage.content.replace(/\s+/g, ' ').trim();
-                                    sessionName = content.length > 30 ? content.substring(0, 30) + '...' : content;
-                                }
-                            }
-                        }
-                    } catch (err) {
-                        // エラーが発生した場合は、デフォルトの名前を使用
-                        console.warn('Failed to get session name for', sessionId, err);
-                    }
-
-                    // セッション情報を構築
-                    const session = {
-                        id: sessionId,
-                        name: sessionName,
-                        createdAt: new Date(),
-                        lastMessageAt: new Date()
-                    };
-
-                    sessions.push(session);
-                }
-            }
-
-            return sessions;
-        } catch (error) {
-            console.error('Get sessions error:', error);
-            return [];
-        }
+    public async getAllSessions(): Promise<SessionInfo[]> {
+        return await this.sessionStorage.getAllSessions();
     }
 
     /**
      * AIが初期化済みかチェック
      */
     public isInitialized(): boolean {
-        return this.workflow !== null && this.chatModel !== null;
+        return this.aiService.isInitialized() &&
+            this.sessionStorage.isInitialized() &&
+            this.conversationManager.isInitialized();
     }
 
     /**
      * checkpointerインスタンスを取得（外部でのアクセス用）
      */
     public getCheckpointer(): SqliteSaver | null {
-        return this.checkpointer;
+        return this.sessionStorage.getCheckpointer();
     }
 }

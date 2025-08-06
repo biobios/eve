@@ -1,7 +1,7 @@
 // プリロードスクリプト - フロントエンドにセキュアなAPIを提供
 import { contextBridge, ipcRenderer } from 'electron';
 
-// セッション関連の型定義
+// セッション関連の型定義（session-storage.tsのSessionInfoと一致させる）
 interface ChatSession {
     id: string;
     name: string;
@@ -64,7 +64,7 @@ const electronAPI: ElectronAPI = {
     onAiInitialized: (callback: (initialized: boolean) => void) => {
         const listener = (_event: any, initialized: boolean) => callback(initialized);
         ipcRenderer.on('ai-initialized', listener);
-        
+
         // クリーンアップ関数を返す
         return () => {
             ipcRenderer.removeListener('ai-initialized', listener);

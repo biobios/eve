@@ -7,6 +7,7 @@ import { ipcMain, IpcMainInvokeEvent } from 'electron';
 import { AIManager } from './ai-manager';
 import { ApiKeyStorage } from './crypto-utils';
 import { SessionManager } from './session-manager';
+import { SessionInfo } from './session-storage';
 
 export class IPCHandlers {
     private aiManager: AIManager;
@@ -82,7 +83,7 @@ export class IPCHandlers {
         });
 
         // セッション一覧を取得するハンドラー
-        ipcMain.handle('get-sessions', async (_event: IpcMainInvokeEvent) => {
+        ipcMain.handle('get-sessions', async (_event: IpcMainInvokeEvent): Promise<SessionInfo[]> => {
             return await this.aiManager.getAllSessions();
         });
 
