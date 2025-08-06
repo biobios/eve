@@ -203,26 +203,40 @@ export class ApiKeyStorage {
 
     const encryptedKey = this.dataEncryption.encrypt(apiKey);
 
-    const upsertStmt = ApiKeyStorage.db.prepare(`
-      INSERT INTO api_keys (service_name, encrypted_api_key, ai_model, description, updated_at)
-      VALUES (?, ?, ?, ?, CURRENT_TIMESTAMP)
-      ON CONFLICT(service_name) DO UPDATE SET
-        encrypted_api_key = excluded.encrypted_api_key,
-        ai_model = excluded.ai_model,
-        description = excluded.description,
-        updated_at = excluded.updated_at
+    // service_nameとai_modelの組み合わせが既に存在するかチェック
+    const existingStmt = ApiKeyStorage.db.prepare(`
+      SELECT id FROM api_keys 
+      WHERE service_name = ? AND (ai_model = ? OR (ai_model IS NULL AND ? IS NULL))
     `);
+    const existing = existingStmt.get(serviceName, aiModel, aiModel) as { id: number } | undefined;
 
-    const result = upsertStmt.run(serviceName, encryptedKey, aiModel, description);
-    return result.lastInsertRowid as number;
+    if (existing) {
+      // 既存のレコードを更新
+      const updateStmt = ApiKeyStorage.db.prepare(`
+        UPDATE api_keys 
+        SET encrypted_api_key = ?, description = ?, updated_at = CURRENT_TIMESTAMP
+        WHERE id = ?
+      `);
+      updateStmt.run(encryptedKey, description, existing.id);
+      return existing.id;
+    } else {
+      // 新しいレコードを挿入
+      const insertStmt = ApiKeyStorage.db.prepare(`
+        INSERT INTO api_keys (service_name, encrypted_api_key, ai_model, description, updated_at)
+        VALUES (?, ?, ?, ?, CURRENT_TIMESTAMP)
+      `);
+      const result = insertStmt.run(serviceName, encryptedKey, aiModel, description);
+      return result.lastInsertRowid as number;
+    }
   }
 
   /**
    * APIキー情報を取得する（AIモデル情報付き）
    * @param serviceName サービス名（例: 'gemini'）
+   * @param aiModel AIモデル名（オプション、指定しない場合は最初に見つかったものを返す）
    * @returns APIキー情報、見つからない場合はnull
    */
-  public async getApiKeyInfo(serviceName: string): Promise<{
+  public async getApiKeyInfo(serviceName: string, aiModel?: string): Promise<{
     id: number;
     serviceName: string;
     apiKey: string;
@@ -239,13 +253,34 @@ export class ApiKeyStorage {
       throw new Error('Database not initialized');
     }
 
-    const selectStmt = ApiKeyStorage.db.prepare(`
-      SELECT id, service_name, encrypted_api_key, ai_model, description, 
-             is_active, last_used_at, created_at, updated_at
-      FROM api_keys 
-      WHERE service_name = ?
-    `);
-    const result = selectStmt.get(serviceName) as {
+    let selectStmt;
+    let result;
+
+    if (aiModel !== undefined) {
+      // 特定のモデルを指定して検索
+      selectStmt = ApiKeyStorage.db.prepare(`
+        SELECT id, service_name, encrypted_api_key, ai_model, description, 
+               is_active, last_used_at, created_at, updated_at
+        FROM api_keys 
+        WHERE service_name = ? AND (ai_model = ? OR (ai_model IS NULL AND ? IS NULL))
+        ORDER BY created_at DESC
+        LIMIT 1
+      `);
+      result = selectStmt.get(serviceName, aiModel, aiModel);
+    } else {
+      // サービス名のみで検索（最初に見つかったものを返す）
+      selectStmt = ApiKeyStorage.db.prepare(`
+        SELECT id, service_name, encrypted_api_key, ai_model, description, 
+               is_active, last_used_at, created_at, updated_at
+        FROM api_keys 
+        WHERE service_name = ?
+        ORDER BY created_at DESC
+        LIMIT 1
+      `);
+      result = selectStmt.get(serviceName);
+    }
+
+    const typedResult = result as {
       id: number;
       service_name: string;
       encrypted_api_key: string;
@@ -257,19 +292,19 @@ export class ApiKeyStorage {
       updated_at: string;
     } | undefined;
 
-    if (result) {
+    if (typedResult) {
       try {
-        const decryptedKey = this.dataEncryption.decrypt(result.encrypted_api_key);
+        const decryptedKey = this.dataEncryption.decrypt(typedResult.encrypted_api_key);
         return {
-          id: result.id,
-          serviceName: result.service_name,
+          id: typedResult.id,
+          serviceName: typedResult.service_name,
           apiKey: decryptedKey,
-          aiModel: result.ai_model,
-          description: result.description,
-          isActive: Boolean(result.is_active),
-          lastUsedAt: result.last_used_at,
-          createdAt: result.created_at,
-          updatedAt: result.updated_at
+          aiModel: typedResult.ai_model,
+          description: typedResult.description,
+          isActive: Boolean(typedResult.is_active),
+          lastUsedAt: typedResult.last_used_at,
+          createdAt: typedResult.created_at,
+          updatedAt: typedResult.updated_at
         };
       } catch (error) {
         console.error('Failed to decrypt API key:', error);
@@ -346,30 +381,122 @@ export class ApiKeyStorage {
   /**
    * APIキーを取得する（後方互換性のため）
    * @param serviceName サービス名（例: 'gemini'）
+   * @param aiModel AIモデル名（オプション）
    * @returns APIキー（復号化済み）、見つからない場合はnull
    */
-  public async getApiKey(serviceName: string): Promise<string | null> {
-    const info = await this.getApiKeyInfo(serviceName);
+  public async getApiKey(serviceName: string, aiModel?: string): Promise<string | null> {
+    const info = await this.getApiKeyInfo(serviceName, aiModel);
     return info ? info.apiKey : null;
   }
 
   /**
-   * APIキーを削除する
+   * サービス名に関連するすべてのAPIキー情報を取得する
    * @param serviceName サービス名（例: 'gemini'）
+   * @returns APIキー情報の配列
    */
-  public async deleteApiKey(serviceName: string): Promise<void> {
+  public async getAllApiKeysForService(serviceName: string): Promise<Array<{
+    id: number;
+    serviceName: string;
+    apiKey: string;
+    aiModel?: string;
+    description?: string;
+    isActive: boolean;
+    lastUsedAt?: string;
+    createdAt: string;
+    updatedAt: string;
+  }>> {
     await this.ensureInitialized();
 
     if (!ApiKeyStorage.db) {
       throw new Error('Database not initialized');
     }
 
-    const deleteStmt = ApiKeyStorage.db.prepare('DELETE FROM api_keys WHERE service_name = ?');
-    deleteStmt.run(serviceName);
+    const selectStmt = ApiKeyStorage.db.prepare(`
+      SELECT id, service_name, encrypted_api_key, ai_model, description, 
+             is_active, last_used_at, created_at, updated_at
+      FROM api_keys 
+      WHERE service_name = ?
+      ORDER BY ai_model, created_at DESC
+    `);
+    const results = selectStmt.all(serviceName) as Array<{
+      id: number;
+      service_name: string;
+      encrypted_api_key: string;
+      ai_model?: string;
+      description?: string;
+      is_active: number;
+      last_used_at?: string;
+      created_at: string;
+      updated_at: string;
+    }>;
+
+    const decryptedResults = [];
+    for (const result of results) {
+      try {
+        const decryptedKey = this.dataEncryption.decrypt(result.encrypted_api_key);
+        decryptedResults.push({
+          id: result.id,
+          serviceName: result.service_name,
+          apiKey: decryptedKey,
+          aiModel: result.ai_model,
+          description: result.description,
+          isActive: Boolean(result.is_active),
+          lastUsedAt: result.last_used_at,
+          createdAt: result.created_at,
+          updatedAt: result.updated_at
+        });
+      } catch (error) {
+        console.error(`Failed to decrypt API key for ID ${result.id}:`, error);
+        // エラーが発生したキーはスキップ
+      }
+    }
+
+    return decryptedResults;
   }
 
   /**
-   * 保存されているすべてのサービス名を取得する
+   * APIキーを削除する
+   * @param serviceName サービス名（例: 'gemini'）
+   * @param aiModel AIモデル名（オプション、指定しない場合はサービス全体を削除）
+   */
+  public async deleteApiKey(serviceName: string, aiModel?: string): Promise<void> {
+    await this.ensureInitialized();
+
+    if (!ApiKeyStorage.db) {
+      throw new Error('Database not initialized');
+    }
+
+    if (aiModel !== undefined) {
+      // 特定のモデルのみ削除
+      const deleteStmt = ApiKeyStorage.db.prepare(`
+        DELETE FROM api_keys 
+        WHERE service_name = ? AND (ai_model = ? OR (ai_model IS NULL AND ? IS NULL))
+      `);
+      deleteStmt.run(serviceName, aiModel, aiModel);
+    } else {
+      // サービス全体を削除
+      const deleteStmt = ApiKeyStorage.db.prepare('DELETE FROM api_keys WHERE service_name = ?');
+      deleteStmt.run(serviceName);
+    }
+  }
+
+  /**
+   * IDでAPIキーを削除する
+   * @param id APIキーID
+   */
+  public async deleteApiKeyById(id: number): Promise<void> {
+    await this.ensureInitialized();
+
+    if (!ApiKeyStorage.db) {
+      throw new Error('Database not initialized');
+    }
+
+    const deleteStmt = ApiKeyStorage.db.prepare('DELETE FROM api_keys WHERE id = ?');
+    deleteStmt.run(id);
+  }
+
+  /**
+   * 保存されているすべてのサービス名を取得する（重複なし）
    * @returns サービス名の配列
    */
   public async getStoredServices(): Promise<string[]> {
@@ -379,10 +506,35 @@ export class ApiKeyStorage {
       throw new Error('Database not initialized');
     }
 
-    const selectStmt = ApiKeyStorage.db.prepare('SELECT service_name FROM api_keys ORDER BY service_name');
+    const selectStmt = ApiKeyStorage.db.prepare('SELECT DISTINCT service_name FROM api_keys ORDER BY service_name');
     const results = selectStmt.all() as { service_name: string }[];
 
     return results.map(row => row.service_name);
+  }
+
+  /**
+   * 保存されているサービスとモデルの組み合わせを取得する
+   * @returns サービス名とモデル名の組み合わせの配列
+   */
+  public async getStoredServiceModels(): Promise<Array<{ serviceName: string; aiModel?: string; id: number }>> {
+    await this.ensureInitialized();
+
+    if (!ApiKeyStorage.db) {
+      throw new Error('Database not initialized');
+    }
+
+    const selectStmt = ApiKeyStorage.db.prepare(`
+      SELECT id, service_name, ai_model 
+      FROM api_keys 
+      ORDER BY service_name, ai_model
+    `);
+    const results = selectStmt.all() as Array<{ id: number; service_name: string; ai_model?: string }>;
+
+    return results.map(row => ({
+      id: row.id,
+      serviceName: row.service_name,
+      aiModel: row.ai_model
+    }));
   }
 
   /**

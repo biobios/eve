@@ -46,97 +46,18 @@ export const encryptionKeyMigrations: Migration[] = [
 
 /**
  * APIキーデータベースのマイグレーション定義
+ * 単一のマイグレーションで最終的なテーブル構造を作成
  */
 export const apiKeyMigrations: Migration[] = [
     {
         version: 1,
-        description: 'Create api_keys table',
+        description: 'Create api_keys table with support for multiple models per service',
         up: (db) => {
             db.exec(`
                 CREATE TABLE IF NOT EXISTS api_keys (
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    service_name TEXT UNIQUE NOT NULL,
-                    encrypted_api_key TEXT NOT NULL,
-                    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-                    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
-                )
-            `);
-        },
-        down: (db) => {
-            db.exec(`DROP TABLE IF EXISTS api_keys`);
-        }
-    },
-    {
-        version: 2,
-        description: 'Add index on service_name for api_keys',
-        up: (db) => {
-            db.exec(`
-                CREATE INDEX IF NOT EXISTS idx_api_keys_service_name 
-                ON api_keys(service_name)
-            `);
-        },
-        down: (db) => {
-            db.exec(`DROP INDEX IF EXISTS idx_api_keys_service_name`);
-        }
-    },
-    {
-        version: 3,
-        description: 'Add metadata fields to api_keys table',
-        up: (db) => {
-            db.exec(`
-                ALTER TABLE api_keys ADD COLUMN description TEXT;
-                ALTER TABLE api_keys ADD COLUMN is_active BOOLEAN DEFAULT 1;
-                ALTER TABLE api_keys ADD COLUMN last_used_at DATETIME;
-            `);
-        },
-        down: (db) => {
-            // SQLiteでは列の削除が制限されているため、テーブルを再作成
-            db.exec(`
-                CREATE TABLE api_keys_backup AS 
-                SELECT id, service_name, encrypted_api_key, created_at, updated_at 
-                FROM api_keys;
-                
-                DROP TABLE api_keys;
-                
-                CREATE TABLE api_keys (
-                    id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    service_name TEXT UNIQUE NOT NULL,
-                    encrypted_api_key TEXT NOT NULL,
-                    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-                    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
-                );
-                
-                INSERT INTO api_keys (id, service_name, encrypted_api_key, created_at, updated_at)
-                SELECT id, service_name, encrypted_api_key, created_at, updated_at 
-                FROM api_keys_backup;
-                
-                DROP TABLE api_keys_backup;
-                
-                CREATE INDEX IF NOT EXISTS idx_api_keys_service_name 
-                ON api_keys(service_name);
-            `);
-        }
-    },
-    {
-        version: 4,
-        description: 'Add ai_model column to api_keys table',
-        up: (db) => {
-            db.exec(`
-                ALTER TABLE api_keys ADD COLUMN ai_model TEXT;
-            `);
-        },
-        down: (db) => {
-            // SQLiteでは列の削除が制限されているため、テーブルを再作成
-            db.exec(`
-                CREATE TABLE api_keys_backup AS 
-                SELECT id, service_name, encrypted_api_key, description, is_active, last_used_at, created_at, updated_at 
-                FROM api_keys;
-                
-                DROP TABLE api_keys;
-                
-                CREATE TABLE api_keys (
-                    id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    service_name TEXT UNIQUE NOT NULL,
+                    service_name TEXT NOT NULL,
+                    ai_model TEXT,
                     encrypted_api_key TEXT NOT NULL,
                     description TEXT,
                     is_active BOOLEAN DEFAULT 1,
@@ -145,14 +66,18 @@ export const apiKeyMigrations: Migration[] = [
                     updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
                 );
                 
-                INSERT INTO api_keys (id, service_name, encrypted_api_key, description, is_active, last_used_at, created_at, updated_at)
-                SELECT id, service_name, encrypted_api_key, description, is_active, last_used_at, created_at, updated_at 
-                FROM api_keys_backup;
-                
-                DROP TABLE api_keys_backup;
-                
                 CREATE INDEX IF NOT EXISTS idx_api_keys_service_name 
                 ON api_keys(service_name);
+                
+                CREATE INDEX IF NOT EXISTS idx_api_keys_service_model 
+                ON api_keys(service_name, ai_model);
+            `);
+        },
+        down: (db) => {
+            db.exec(`
+                DROP INDEX IF EXISTS idx_api_keys_service_model;
+                DROP INDEX IF EXISTS idx_api_keys_service_name;
+                DROP TABLE IF EXISTS api_keys;
             `);
         }
     }
