@@ -12,6 +12,3 @@ export { IPCHandlerManager } from './ipc-handler-manager';
 export { SessionHandler } from './session-handler';
 export { UtilityHandler } from './utility-handler';
 
-// レガシー互換性のためのエクスポート（元のIPCHandlersクラスと同じインターフェース）
-export { IPCHandlerManager as IPCHandlers } from './ipc-handler-manager';
-
