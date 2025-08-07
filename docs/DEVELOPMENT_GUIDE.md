@@ -58,7 +58,10 @@ npm run dev
 src/
 ├── main.ts                     # Electronアプリエントリーポイント
 ├── window-manager.ts           # ウィンドウライフサイクル管理
-├── ipc-handlers.ts            # プロセス間通信集約
+├── ipc-handlers/              # モジュール化されたプロセス間通信
+│   ├── ipc-handler-manager.ts # 統合管理
+│   ├── base-handler.ts        # 基底クラス
+│   └── (各種専用ハンドラー)   # 機能別ハンドラー
 ├── preload.ts                 # セキュアAPI公開
 ├── initial-setup-preload.ts   # 初期設定専用API
 ├── chat.ts                    # フロントエンドロジック
@@ -81,7 +84,7 @@ src/
 1. `chat.html` または `initial-setup.html`: UI要素追加
 2. `src/chat.ts` または `src/initial-setup.ts`: ロジック実装
 3. `src/preload.ts` または `src/initial-setup-preload.ts`: 必要に応じてAPI追加
-4. `src/ipc-handlers.ts`: バックエンドハンドラー追加
+4. `src/ipc-handlers/`: 適切な専用ハンドラーに機能追加
 
 #### AI機能拡張
 1. `src/ai-manager.ts`: ワークフロー変更

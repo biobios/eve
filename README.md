@@ -95,7 +95,16 @@ eve/
 │   ├── database-manager.ts       # DB統合管理（249行）
 │   ├── database-migration.ts     # マイグレーション（332行）
 │   ├── database-migrations-config.ts # マイグレーション定義（294行）
-│   ├── ipc-handlers.ts           # IPC通信ハンドラー（377行）
+│   ├── ipc-handlers/              # IPCハンドラーシステム（モジュール化）
+│   │   ├── ipc-handler-manager.ts# 統合管理（55行）
+│   │   ├── base-handler.ts       # 基底クラス（35行）
+│   │   ├── api-key-handler.ts    # APIキー管理（125行）
+│   │   ├── session-handler.ts    # セッション管理（65行）
+│   │   ├── chat-handler.ts       # チャット機能（75行）
+│   │   ├── database-handler.ts   # DB管理（85行）
+│   │   ├── initial-setup-handler.ts # 初期設定（65行）
+│   │   ├── utility-handler.ts    # ユーティリティ（25行）
+│   │   └── index.ts              # エクスポート（16行）
 │   ├── window-manager.ts         # ウィンドウ管理（185行）
 │   ├── preload.ts                # セキュアAPI（116行）
 │   └── (その他のTypeScriptファイル)

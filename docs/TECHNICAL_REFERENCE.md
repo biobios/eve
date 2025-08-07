@@ -14,7 +14,16 @@
 
 #### バックエンド (TypeScript)
 - `src/crypto-utils.ts`: 567行 - 暗号化とAPIキー保存
-- `src/ipc-handlers.ts`: 377行 - IPC通信ハンドラー集約
+- `src/ipc-handlers/`: 合計476行 - モジュール化されたIPC通信システム
+  - `ipc-handler-manager.ts`: 55行 - 統合管理
+  - `api-key-handler.ts`: 125行 - APIキー管理専用
+  - `database-handler.ts`: 85行 - データベース管理専用
+  - `chat-handler.ts`: 75行 - チャット機能専用
+  - `session-handler.ts`: 65行 - セッション管理専用
+  - `initial-setup-handler.ts`: 65行 - 初期設定専用
+  - `base-handler.ts`: 35行 - 基底クラス
+  - `utility-handler.ts`: 25行 - ユーティリティ
+  - `index.ts`: 16行 - エクスポート設定
 - `src/database-migration.ts`: 332行 - マイグレーション管理システム
 - `src/database-migrations-config.ts`: 294行 - データベースマイグレーション定義
 - `src/settings-manager.ts`: 255行 - 設定管理システム

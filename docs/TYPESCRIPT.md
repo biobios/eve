@@ -20,7 +20,16 @@ eve/
 │   ├── database-manager.ts       # DB統合管理（TypeScript）
 │   ├── database-migration.ts     # マイグレーション（TypeScript）
 │   ├── database-migrations-config.ts # マイグレーション定義（TypeScript）
-│   ├── ipc-handlers.ts           # IPC通信ハンドラー（TypeScript）
+│   ├── ipc-handlers/              # IPC通信システム（TypeScript、モジュール化）
+│   │   ├── ipc-handler-manager.ts# 統合管理
+│   │   ├── base-handler.ts       # 基底クラス
+│   │   ├── api-key-handler.ts    # APIキー管理
+│   │   ├── session-handler.ts    # セッション管理
+│   │   ├── chat-handler.ts       # チャット機能
+│   │   ├── database-handler.ts   # DB管理
+│   │   ├── initial-setup-handler.ts # 初期設定
+│   │   ├── utility-handler.ts    # ユーティリティ
+│   │   └── index.ts              # エクスポート
 │   └── window-manager.ts         # ウィンドウ管理（TypeScript）
 ├── dist/                         # TypeScriptコンパイル後のJavaScript（自動生成）
 │   ├── main.js
@@ -189,7 +198,10 @@ interface UserSetting {
 ### メインプロセス
 - **main.ts**: Electronアプリケーションのエントリーポイント
 - **window-manager.ts**: ウィンドウの作成と管理
-- **ipc-handlers.ts**: プロセス間通信のハンドラー集約
+- **ipc-handlers/**: モジュール化されたプロセス間通信システム
+  - **ipc-handler-manager.ts**: ハンドラー統合管理
+  - **base-handler.ts**: 基底クラス、共通機能
+  - 各種専用ハンドラー (api-key, session, chat, database, etc.)
 
 ### AIシステム
 - **ai-manager.ts**: AI機能の統合管理
