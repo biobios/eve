@@ -35,7 +35,10 @@ Eveは以下の機能を提供するデスクトップアプリケーション�
 ### メインコンポーネント
 1. **メインプロセス** (`src/main.ts` - 128行): Electronアプリの起動、コンポーネント統合、ライフサイクル管理
 2. **データベース管理システム**: 
-   - **DatabaseManager** (`src/database-manager.ts` - 249行): 統合データベース管理
+   - **DatabaseManager** (`src/database-manager.ts` - 約130行): 統合データベース管理（リファクタリング済み）
+   - **DatabaseHealthChecker** (`src/database-health-checker.ts` - 68行): データベースヘルスチェック専用
+   - **DatabaseBackupManager** (`src/database-backup-manager.ts` - 70行): バックアップ管理専用
+   - **DatabaseLogger** (`src/database-logger.ts` - 92行): ログ出力専用
    - **MigrationManager** (`src/database-migration.ts` - 332行): マイグレーション自動実行
    - **MigrationConfig** (`src/database-migrations-config.ts` - 294行): スキーマ定義
 3. **AIシステム**:
@@ -82,8 +85,11 @@ Electron IPC: プリロードスクリプトによるセキュアな通信
 │   └── index.ts: モジュールエクスポート
 └── main.ts (128行): アプリ起動、コンポーネント統合
 
-データベースシステム: SQLite + 自動マイグレーション
-├── database-manager.ts (249行): 統合管理、ヘルスチェック、バックアップ
+データベースシステム: SQLite + 自動マイグレーション（リファクタリング済み）
+├── database-manager.ts (約130行): 統合管理（簡素化）
+├── database-health-checker.ts (68行): ヘルスチェック専用
+├── database-backup-manager.ts (70行): バックアップ管理専用
+├── database-logger.ts (92行): ログ出力専用
 ├── database-migration.ts (332行): マイグレーション自動実行、ロールバック
 ├── database-migrations-config.ts (294行): スキーマ定義、バージョン管理
 └── session-storage.ts (204行): セッションデータ永続化
@@ -165,11 +171,29 @@ npm run build:linux  # Linux (AppImage)
 - DatabaseManager、AIManager、SessionManagerの組み立て
 - セキュリティ設定とハンドラー設定
 
-#### `src/database-manager.ts` (249行)
-- 複数データベースの統合管理
-- 自動マイグレーション実行とヘルスチェック
-- データベースバックアップ機能
-- 開発用ロールバック機能
+#### `src/database-manager.ts` (約130行) - リファクタリング済み
+- 複数データベースの統合管理（簡素化済み）
+- 他のデータベース管理クラスの統合
+- システム初期化と終了処理
+- 開発用マイグレーション制御
+
+#### `src/database-health-checker.ts` (68行) - 新規作成
+- データベースヘルスチェック専用クラス
+- 個別およびシステム全体の状態診断
+- エラー状況の詳細分析
+- 状態レポート生成
+
+#### `src/database-backup-manager.ts` (70行) - 新規作成  
+- データベースバックアップ専用クラス
+- 全データベースおよび個別バックアップ
+- バックアップファイル管理
+- エラーハンドリングとレポート
+
+#### `src/database-logger.ts` (92行) - 新規作成
+- データベース関連ログ出力専用クラス
+- 初期化、終了、マイグレーション、エラーログ
+- 構造化されたログフォーマット
+- デバッグ情報の整理
 
 #### `src/database-migration.ts` (332行)
 - マイグレーション自動実行システム
@@ -355,8 +379,9 @@ APIキー取得 → SQLite読み込み → crypto-js復号化 → ElectronSafeSt
 6. **暗号化原則**: 機密データの多層保護
 
 ### ファイル構造の維持
-- `src/`: TypeScriptソースコード（総計約3,100行）
+- `src/`: TypeScriptソースコード（総計約3,360行 - リファクタリング後）
   - **コアシステム**: `main.ts`, `database-manager.ts`, `database-migration.ts`
+  - **データベース管理**: `database-health-checker.ts`, `database-backup-manager.ts`, `database-logger.ts`
   - **AIシステム**: `ai-manager.ts`, `ai-service.ts`, `conversation-manager.ts` 
   - **セッション管理**: `session-manager.ts`, `session-storage.ts`
   - **セキュリティ**: `crypto-utils.ts`
@@ -538,13 +563,44 @@ npm run pack
 ### 詳細なトラブルシューティング
 詳細な開発環境での問題解決については、[DEVELOPMENT_GUIDE.md](./DEVELOPMENT_GUIDE.md) のトラブルシューティングセクションを参照してください。
 
+## 🔄 最新のリファクタリング完了事項（2025年8月7日）
+
+### DatabaseManager系のリファクタリング
+
+**目的**: 単一責任原則に基づく責任分離とコードの保守性向上
+
+**変更内容**:
+1. **DatabaseManager** (249行 → 約130行): 統合管理機能のみに特化
+2. **新規作成ファイル**:
+   - **DatabaseHealthChecker** (68行): ヘルスチェック専用
+   - **DatabaseBackupManager** (70行): バックアップ管理専用  
+   - **DatabaseLogger** (92行): ログ出力専用
+
+**アーキテクチャ改善**:
+- **関心の分離**: 各クラスが単一の責任を持つように分離
+- **保守性向上**: コード変更時の影響範囲を最小化
+- **テスト容易性**: 各機能を独立してテスト可能
+- **可読性向上**: 各クラスの役割が明確で理解しやすい
+
+**互換性**: 
+- パブリックAPIは変更なし（後方互換性維持）
+- 既存の使用箇所は修正不要
+- 型定義は自動的に新しい実装に対応
+
+**効果**:
+- コードの重複排除
+- エラーハンドリングの統一化
+- ログ出力の構造化
+- 将来の機能拡張への対応力向上
+
 ---
 
 **このドキュメントは、AIエージェントがEveプロジェクトで効率的に作業するための包括的なガイドです。作業開始前に必ずこのドキュメントを参照し、技術詳細が必要な場合は関連ドキュメントを確認してください。**
 
 ---
-*最終更新: 2025年8月6日*  
+*最終更新: 2025年8月7日*  
 *プロジェクトバージョン: 1.0.0*  
-*総コード行数: 約2,960行*  
+*総コード行数: 約3,360行（リファクタリング後）*  
 *対応Node.js: v14以上*  
-*対応Electron: ^37.2.5*
+*対応Electron: ^37.2.5*  
+*リファクタリング完了: DatabaseManager系（2025年8月7日）*
