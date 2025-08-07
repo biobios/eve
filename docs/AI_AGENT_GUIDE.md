@@ -213,13 +213,21 @@ npm run build:linux  # Linux (AppImage)
 - 複数APIキーの管理と切り替え機能
 
 ### 通信・UI管理
-#### `src/ipc-handlers.ts` (377行)
-- IPC（プロセス間通信）ハンドラーの集約
-- API キー管理ハンドラー（複数キー対応、設定、削除、確認）
-- チャット機能ハンドラー（メッセージ送信、履歴取得）
-- セッション管理ハンドラー（作成、切り替え、削除）
-- データベース管理ハンドラー（ヘルスチェック、バックアップ）
-- 初期設定関連ハンドラー（セットアップフロー）
+#### `src/ipc-handlers/` (新構造 - 2025年8月7日リファクタリング済み)
+- **BaseHandler** (`base-handler.ts` - 35行): IPCハンドラーの基底クラス、共通機能提供
+- **ApiKeyHandler** (`api-key-handler.ts` - 125行): APIキー管理専用ハンドラー
+- **SessionHandler** (`session-handler.ts` - 65行): セッション管理専用ハンドラー  
+- **ChatHandler** (`chat-handler.ts` - 75行): チャット機能専用ハンドラー
+- **DatabaseHandler** (`database-handler.ts` - 85行): データベース管理専用ハンドラー
+- **InitialSetupHandler** (`initial-setup-handler.ts` - 65行): 初期設定専用ハンドラー
+- **UtilityHandler** (`utility-handler.ts` - 25行): ユーティリティ機能専用ハンドラー
+- **IPCHandlerManager** (`ipc-handler-manager.ts` - 55行): 統合管理クラス
+- **Index** (`index.ts` - 16行): モジュールエクスポート設定
+
+#### `src/ipc-handlers.ts` (30行) - レガシー互換性ラッパー
+- 旧構造への後方互換性を提供（非推奨）
+- 新しいIPCHandlerManagerへの委譲
+- 段階的移行をサポート
 
 #### `src/window-manager.ts` (185行)
 - Electronウィンドウの作成と管理

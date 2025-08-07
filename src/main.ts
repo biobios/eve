@@ -2,7 +2,7 @@ import { app } from 'electron';
 import { AIManager } from './ai-manager';
 import { ApiKeyStorage, DataEncryption, EncryptionKeyManager } from './crypto-utils';
 import { DatabaseManager } from './database-manager';
-import { IPCHandlers } from './ipc-handlers';
+import { IPCHandlerManager } from './ipc-handlers/ipc-handler-manager';
 import { SessionManager } from './session-manager';
 import { SettingsManager } from './settings-manager';
 import { WindowManager } from './window-manager';
@@ -12,7 +12,7 @@ let databaseManager: DatabaseManager | null = null;
 let apiKeyStorage: ApiKeyStorage | null = null;
 let aiManager: AIManager | null = null;
 let sessionManager: SessionManager | null = null;
-let ipcHandlers: IPCHandlers | null = null;
+let ipcHandlerManager: IPCHandlerManager | null = null;
 let windowManager: WindowManager | null = null;
 let settingsManager: SettingsManager | null = null;
 
@@ -67,10 +67,10 @@ const initializeComponents = async (): Promise<void> => {
   aiManager = new AIManager(apiKeyStorage);
   sessionManager = new SessionManager();
   windowManager = new WindowManager(aiManager);
-  ipcHandlers = new IPCHandlers(aiManager, sessionManager, apiKeyStorage, windowManager);
+  ipcHandlerManager = new IPCHandlerManager(aiManager, sessionManager, apiKeyStorage, windowManager);
 
   // IPCハンドラーを設定
-  ipcHandlers.setupHandlers();
+  ipcHandlerManager.setupAllHandlers();
 
   // セキュリティハンドラーを設定
   WindowManager.setupSecurityHandlers();
