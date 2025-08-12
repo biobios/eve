@@ -18,6 +18,36 @@ export class DialogManager {
 
     constructor(elements: ConfirmDialogElements) {
         this.elements = elements;
+        this.setupEventListeners();
+    }
+
+    /**
+     * イベントリスナーを設定
+     */
+    private setupEventListeners(): void {
+        // OKボタン
+        this.elements.okBtn.addEventListener('click', () => {
+            this.handleConfirmDialog(true);
+        });
+
+        // キャンセルボタン
+        this.elements.cancelBtn.addEventListener('click', () => {
+            this.handleConfirmDialog(false);
+        });
+
+        // モーダル背景クリックで閉じる
+        this.elements.modal.addEventListener('click', (e) => {
+            if (e.target === this.elements.modal) {
+                this.handleConfirmDialog(false);
+            }
+        });
+
+        // ESCキーで閉じる
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape' && this.isDialogVisible()) {
+                this.handleConfirmDialog(false);
+            }
+        });
     }
 
     /**

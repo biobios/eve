@@ -80,11 +80,15 @@ class ChatApp {
         // セッション管理の初期化
         const sessionElements: SessionElements = {
             section: elements.sessionSection,
-            select: elements.sessionSelect,
+            list: elements.sessionList,
             newBtn: elements.newConversationBtn,
-            deleteBtn: elements.deleteSessionBtn
+            contextMenu: elements.sessionContextMenu,
+            deleteMenuItem: elements.deleteSessionMenuItem
         };
         this.sessionManager = new SessionUIManager(sessionElements);
+
+        // セッションクリックのコールバックを設定
+        this.sessionManager.setOnSessionClickCallback(this.handleSessionSwitch.bind(this));
 
         // APIキー管理の初期化
         const apiKeyElements: ApiKeyElements = {
@@ -125,8 +129,7 @@ class ChatApp {
             apiKeyManagementSection: elements.apiKeyManagementSection,
             chatInput: elements.chatInput,
             sendBtn: elements.sendBtn,
-            clearHistoryBtn: elements.clearHistoryBtn,
-            deleteSessionBtn: elements.deleteSessionBtn
+            clearHistoryBtn: elements.clearHistoryBtn
         };
         this.uiStateManager = new UIStateManager(uiStateElements);
     }
@@ -167,7 +170,6 @@ class ChatApp {
             onCancelAddApiKey: this.handleCancelAddApiKey.bind(this),
 
             // セッション関連
-            onSessionSwitch: this.handleSessionChange.bind(this),
             onNewConversation: this.handleNewConversation.bind(this),
             onDeleteSession: this.handleDeleteSession.bind(this),
 
@@ -175,12 +177,7 @@ class ChatApp {
             onSendMessage: this.handleSendMessage.bind(this),
             onChatInputEnter: this.handleKeyPress.bind(this),
             onChatInputChange: () => { }, // 必要に応じて実装
-            onClearHistory: this.handleClearHistory.bind(this),
-
-            // 確認ダイアログ関連
-            onConfirmOk: () => { }, // ダイアログマネージャーで処理
-            onConfirmCancel: () => { }, // ダイアログマネージャーで処理
-            onConfirmModalClick: () => { } // ダイアログマネージャーで処理
+            onClearHistory: this.handleClearHistory.bind(this)
         };
 
         this.uiElementManager.setupEventListeners(handlers);
@@ -219,35 +216,24 @@ class ChatApp {
         }
     }
 
-    // イベントハンドラー実装
-
     /**
-     * セッション変更イベントハンドラー
+     * セッション切り替えハンドラー（コールバック用）
      */
-    private async handleSessionChange(event: Event): Promise<void> {
-        const target = event.target as HTMLSelectElement;
-        const sessionId = target.value;
-
-        if (sessionId) {
-            const result = await this.sessionManager.switchSession(sessionId);
-            if (result.success && result.session) {
-                this.chatManager.setCurrentSession(sessionId);
-                await this.chatManager.loadConversationHistory(sessionId);
-                // 新しい会話モードを無効にして、セッション状態を有効に
-                this.uiStateManager.setNewConversationMode(false);
-                this.uiStateManager.setSessionState(true);
-                this.statusManager.showConnectedStatus(`セッション: ${result.session.name}`);
-            } else {
-                this.statusManager.showErrorStatus(`セッションの切り替えに失敗しました${result.error ? ': ' + result.error : ''}`);
-            }
-        } else {
-            this.chatManager.setCurrentSession(null);
-            this.chatManager.clearMessages();
+    private async handleSessionSwitch(sessionId: string): Promise<void> {
+        const result = await this.sessionManager.switchSession(sessionId);
+        if (result.success && result.session) {
+            this.chatManager.setCurrentSession(sessionId);
+            await this.chatManager.loadConversationHistory(sessionId);
+            // 新しい会話モードを無効にして、セッション状態を有効に
             this.uiStateManager.setNewConversationMode(false);
-            this.uiStateManager.setSessionState(false);
-            this.statusManager.showStatus('準備完了');
+            this.uiStateManager.setSessionState(true);
+            this.statusManager.showConnectedStatus(`セッション: ${result.session.name}`);
+        } else {
+            this.statusManager.showErrorStatus(`セッションの切り替えに失敗しました${result.error ? ': ' + result.error : ''}`);
         }
     }
+
+    // イベントハンドラー実装
 
     /**
      * 新しい会話開始イベントハンドラー
@@ -259,10 +245,6 @@ class ChatApp {
             this.chatManager.setCurrentSession(null);
             this.chatManager.clearMessages();
             this.sessionManager.clearCurrentSession();
-
-            // セッション選択をリセット
-            const sessionSelect = this.sessionManager.getSessionSelect();
-            sessionSelect.value = '';
 
             // UI状態を新しい会話モードに設定
             this.uiStateManager.setNewConversationMode(true);
@@ -277,20 +259,22 @@ class ChatApp {
      * セッション削除イベントハンドラー
      */
     private async handleDeleteSession(): Promise<void> {
-        const sessionId = this.sessionManager.getSelectedSessionId();
-        if (!sessionId) {
-            this.statusManager.showErrorStatus('削除するセッションを選択してください');
-            return;
-        }
-
         const confirmed = await this.dialogManager.showDeleteConfirmDialog('セッション');
         if (confirmed) {
-            const result = await this.sessionManager.deleteSession(sessionId);
+            // 現在表示中のセッションIDを取得
+            const currentDisplayedSessionId = this.chatManager.getCurrentSessionId();
+
+            const result = await this.sessionManager.deleteSession(); // sessionIdは右クリックメニューから取得
             if (result.success) {
-                this.chatManager.setCurrentSession(null);
-                this.chatManager.clearMessages();
-                this.uiStateManager.setSessionState(false);
-                this.statusManager.showConnectedStatus('✅ セッションが削除されました');
+                // 削除されたセッションが現在表示中のセッションと同じ場合のみ画面をリセット
+                if (result.deletedSessionId && result.deletedSessionId === currentDisplayedSessionId) {
+                    this.chatManager.setCurrentSession(null);
+                    this.chatManager.clearMessages();
+                    this.uiStateManager.setSessionState(false);
+                    this.statusManager.showConnectedStatus('✅ 現在のセッションが削除されました');
+                } else {
+                    this.statusManager.showConnectedStatus('✅ セッションが削除されました');
+                }
             } else {
                 this.statusManager.showErrorStatus(`❌ セッションの削除に失敗しました${result.error ? ': ' + result.error : ''}`);
             }

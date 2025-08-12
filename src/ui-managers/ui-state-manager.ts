@@ -10,7 +10,6 @@ export interface UIStateElements {
     chatInput: HTMLTextAreaElement;
     sendBtn: HTMLButtonElement;
     clearHistoryBtn: HTMLButtonElement;
-    deleteSessionBtn: HTMLButtonElement;
 }
 
 /**
@@ -91,9 +90,6 @@ export class UIStateManager {
         this.elements.chatInput.disabled = !isInputEnabled;
         this.elements.sendBtn.disabled = !isInputEnabled;
         this.elements.clearHistoryBtn.disabled = !isEnabled;
-
-        // セッション削除ボタン
-        this.elements.deleteSessionBtn.disabled = !this.hasSession;
     }
 
     /**

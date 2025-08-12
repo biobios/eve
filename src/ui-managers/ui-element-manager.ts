@@ -16,9 +16,10 @@ export interface UIElements {
 
     // セッション関連
     sessionSection: HTMLDivElement;
-    sessionSelect: HTMLSelectElement;
+    sessionList: HTMLUListElement;
     newConversationBtn: HTMLButtonElement;
-    deleteSessionBtn: HTMLButtonElement;
+    sessionContextMenu: HTMLDivElement;
+    deleteSessionMenuItem: HTMLDivElement;
 
     // APIキー管理関連
     apiKeyManagementSection: HTMLDivElement;
@@ -73,7 +74,6 @@ export interface EventHandlers {
     onCancelAddApiKey: EventCallback;
 
     // セッション関連
-    onSessionSwitch: ChangeEventCallback;
     onNewConversation: EventCallback;
     onDeleteSession: EventCallback;
 
@@ -82,11 +82,6 @@ export interface EventHandlers {
     onChatInputEnter: KeyboardEventCallback;
     onChatInputChange: EventCallback;
     onClearHistory: EventCallback;
-
-    // 確認ダイアログ関連
-    onConfirmOk: EventCallback;
-    onConfirmCancel: EventCallback;
-    onConfirmModalClick: ClickEventCallback;
 
     // AI初期化
     onAiInitialized?: (initialized: boolean) => void;
@@ -123,9 +118,10 @@ export class UIElementManager {
 
             // セッション関連
             sessionSection: this.getElement('sessionSection') as HTMLDivElement,
-            sessionSelect: this.getElement('sessionSelect') as HTMLSelectElement,
+            sessionList: this.getElement('sessionList') as HTMLUListElement,
             newConversationBtn: this.getElement('newConversationBtn') as HTMLButtonElement,
-            deleteSessionBtn: this.getElement('deleteSessionBtn') as HTMLButtonElement,
+            sessionContextMenu: this.getElement('sessionContextMenu') as HTMLDivElement,
+            deleteSessionMenuItem: this.getElement('deleteSessionMenuItem') as HTMLDivElement,
 
             // APIキー管理関連
             apiKeyManagementSection: this.getElement('apiKeyManagementSection') as HTMLDivElement,
@@ -190,20 +186,14 @@ export class UIElementManager {
         this.elements.cancelAddApiKeyBtn.addEventListener('click', handlers.onCancelAddApiKey);
 
         // セッション関連
-        this.elements.sessionSelect.addEventListener('change', handlers.onSessionSwitch);
         this.elements.newConversationBtn.addEventListener('click', handlers.onNewConversation);
-        this.elements.deleteSessionBtn.addEventListener('click', handlers.onDeleteSession);
+        this.elements.deleteSessionMenuItem.addEventListener('click', handlers.onDeleteSession);
 
         // チャット関連
         this.elements.sendBtn.addEventListener('click', handlers.onSendMessage);
         this.elements.chatInput.addEventListener('keypress', handlers.onChatInputEnter);
         this.elements.chatInput.addEventListener('input', handlers.onChatInputChange);
         this.elements.clearHistoryBtn.addEventListener('click', handlers.onClearHistory);
-
-        // 確認ダイアログ関連
-        this.elements.confirmOkBtn.addEventListener('click', handlers.onConfirmOk);
-        this.elements.confirmCancelBtn.addEventListener('click', handlers.onConfirmCancel);
-        this.elements.confirmModal.addEventListener('click', handlers.onConfirmModalClick);
 
         // AI初期化状態のリスナーを設定
         if (handlers.onAiInitialized && (window as any).electronAPI?.onAiInitialized) {
