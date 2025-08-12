@@ -46,7 +46,7 @@ export class WindowManager {
             webPreferences: {
                 nodeIntegration: false,
                 contextIsolation: true,
-                preload: path.join(__dirname, 'initial-setup-preload.js'),
+                preload: path.join(__dirname, '../preload/initial-setup-preload.js'),
                 webSecurity: true
             },
             show: false,
@@ -56,7 +56,7 @@ export class WindowManager {
         });
 
         // 初期設定HTMLファイルをロード
-        this.setupWindow.loadFile(path.join(__dirname, '../initial-setup.html'));
+        this.setupWindow.loadFile(path.join(__dirname, '../../initial-setup.html'));
 
         // ウィンドウの準備ができたら表示
         this.setupWindow.once('ready-to-show', () => {
@@ -106,16 +106,16 @@ export class WindowManager {
             webPreferences: {
                 nodeIntegration: false,  // セキュリティのため無効化
                 contextIsolation: true,  // セキュリティのため有効化
-                preload: path.join(__dirname, 'preload.js'),  // プリロードスクリプトを指定
+                preload: path.join(__dirname, '../preload/preload.js'),  // プリロードスクリプトを指定
                 webSecurity: true
             },
-            icon: path.join(__dirname, '../assets/icon.png'), // アイコンファイルがある場合
+            icon: path.join(__dirname, '../../assets/icon.png'), // アイコンファイルがある場合
             show: false, // 準備完了まで非表示
             titleBarStyle: 'default'
         });
 
         // chat.htmlファイルをロード
-        this.mainWindow.loadFile(path.join(__dirname, '../chat.html'));
+        this.mainWindow.loadFile(path.join(__dirname, '../../chat.html'));
 
         // ウィンドウの準備ができたら表示
         this.mainWindow.once('ready-to-show', () => {
