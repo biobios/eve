@@ -195,10 +195,17 @@ export class SessionUIManager {
     }
 
     /**
-     * 最初のセッションの場合かチェック（セッション名が「新しい会話」で履歴が空）
-     * @returns 最初のメッセージかどうか
+     * 現在のセッションをクリア
      */
-    public isFirstMessageInNewSession(): boolean {
-        return this.currentSession?.name === '新しい会話';
+    public clearCurrentSession(): void {
+        this.currentSession = null;
+    }
+
+    /**
+     * セッション選択要素を取得
+     * @returns セッション選択要素
+     */
+    public getSessionSelect(): HTMLSelectElement {
+        return this.elements.select;
     }
 }

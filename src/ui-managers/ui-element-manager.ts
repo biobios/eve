@@ -17,7 +17,7 @@ export interface UIElements {
     // セッション関連
     sessionSection: HTMLDivElement;
     sessionSelect: HTMLSelectElement;
-    newSessionBtn: HTMLButtonElement;
+    newConversationBtn: HTMLButtonElement;
     deleteSessionBtn: HTMLButtonElement;
 
     // APIキー管理関連
@@ -74,7 +74,7 @@ export interface EventHandlers {
 
     // セッション関連
     onSessionSwitch: ChangeEventCallback;
-    onNewSession: EventCallback;
+    onNewConversation: EventCallback;
     onDeleteSession: EventCallback;
 
     // チャット関連
@@ -124,7 +124,7 @@ export class UIElementManager {
             // セッション関連
             sessionSection: this.getElement('sessionSection') as HTMLDivElement,
             sessionSelect: this.getElement('sessionSelect') as HTMLSelectElement,
-            newSessionBtn: this.getElement('newSessionBtn') as HTMLButtonElement,
+            newConversationBtn: this.getElement('newConversationBtn') as HTMLButtonElement,
             deleteSessionBtn: this.getElement('deleteSessionBtn') as HTMLButtonElement,
 
             // APIキー管理関連
@@ -191,7 +191,7 @@ export class UIElementManager {
 
         // セッション関連
         this.elements.sessionSelect.addEventListener('change', handlers.onSessionSwitch);
-        this.elements.newSessionBtn.addEventListener('click', handlers.onNewSession);
+        this.elements.newConversationBtn.addEventListener('click', handlers.onNewConversation);
         this.elements.deleteSessionBtn.addEventListener('click', handlers.onDeleteSession);
 
         // チャット関連

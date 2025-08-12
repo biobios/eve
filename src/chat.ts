@@ -81,7 +81,7 @@ class ChatApp {
         const sessionElements: SessionElements = {
             section: elements.sessionSection,
             select: elements.sessionSelect,
-            newBtn: elements.newSessionBtn,
+            newBtn: elements.newConversationBtn,
             deleteBtn: elements.deleteSessionBtn
         };
         this.sessionManager = new SessionUIManager(sessionElements);
@@ -168,7 +168,7 @@ class ChatApp {
 
             // セッション関連
             onSessionSwitch: this.handleSessionChange.bind(this),
-            onNewSession: this.handleNewSession.bind(this),
+            onNewConversation: this.handleNewConversation.bind(this),
             onDeleteSession: this.handleDeleteSession.bind(this),
 
             // チャット関連
@@ -233,6 +233,8 @@ class ChatApp {
             if (result.success && result.session) {
                 this.chatManager.setCurrentSession(sessionId);
                 await this.chatManager.loadConversationHistory(sessionId);
+                // 新しい会話モードを無効にして、セッション状態を有効に
+                this.uiStateManager.setNewConversationMode(false);
                 this.uiStateManager.setSessionState(true);
                 this.statusManager.showConnectedStatus(`セッション: ${result.session.name}`);
             } else {
@@ -241,28 +243,33 @@ class ChatApp {
         } else {
             this.chatManager.setCurrentSession(null);
             this.chatManager.clearMessages();
+            this.uiStateManager.setNewConversationMode(false);
             this.uiStateManager.setSessionState(false);
             this.statusManager.showStatus('準備完了');
         }
     }
 
     /**
-     * 新規セッション作成イベントハンドラー
+     * 新しい会話開始イベントハンドラー
+     * セッションは作成せず、UI状態のみリセット
      */
-    private async handleNewSession(): Promise<void> {
+    private handleNewConversation(): void {
         try {
-            const result = await this.sessionManager.createNewSession();
-            if (result.success && result.session) {
-                this.chatManager.setCurrentSession(result.session.id);
-                this.chatManager.clearMessages();
-                this.uiStateManager.setSessionState(true);
-                this.statusManager.showConnectedStatus(`新しいセッション: ${result.session.name}`);
-            } else {
-                this.statusManager.showErrorStatus(`新しいセッションの作成に失敗しました${result.error ? ': ' + result.error : ''}`);
-            }
+            // 現在のセッション状態をクリア
+            this.chatManager.setCurrentSession(null);
+            this.chatManager.clearMessages();
+            this.sessionManager.clearCurrentSession();
+
+            // セッション選択をリセット
+            const sessionSelect = this.sessionManager.getSessionSelect();
+            sessionSelect.value = '';
+
+            // UI状態を新しい会話モードに設定
+            this.uiStateManager.setNewConversationMode(true);
+            this.statusManager.showStatus('新しい会話を開始できます。メッセージを入力してください。');
         } catch (error) {
-            console.error('New session error:', error);
-            this.statusManager.showErrorStatus('新しいセッションの作成に失敗しました');
+            console.error('New conversation error:', error);
+            this.statusManager.showErrorStatus('新しい会話の開始に失敗しました');
         }
     }
 
@@ -306,13 +313,33 @@ class ChatApp {
         this.statusManager.showStatus('メッセージを送信中...');
 
         try {
-            // 新しいセッションの最初のメッセージの場合、セッション名を更新
-            if (this.sessionManager.isFirstMessageInNewSession()) {
-                await this.updateNewSessionName(messageText);
+            // 現在のセッションが存在しない場合、新しいセッションを作成
+            let currentSession = this.sessionManager.getCurrentSession();
+            let isNewlyCreatedSession = false;
+
+            if (!currentSession) {
+                const result = await this.sessionManager.createNewSession();
+                if (result.success && result.session) {
+                    currentSession = result.session;
+                    isNewlyCreatedSession = true;
+                    this.chatManager.setCurrentSession(currentSession.id);
+                    // 新しい会話モードを無効にして、セッション状態を有効に
+                    this.uiStateManager.setNewConversationMode(false);
+                    this.uiStateManager.setSessionState(true);
+                    this.statusManager.showStatus('新しいセッションを作成しました...');
+                } else {
+                    this.statusManager.showErrorStatus(`新しいセッションの作成に失敗しました${result.error ? ': ' + result.error : ''}`);
+                    this.uiStateManager.setLoadingState(false);
+                    return;
+                }
             }
 
             const result = await this.chatManager.sendMessage(messageText);
             if (result.success) {
+                // メッセージ送信成功後は、セッション一覧を更新（動的セッション名反映）
+                if (isNewlyCreatedSession) {
+                    await this.sessionManager.loadSessions();
+                }
                 this.statusManager.showConnectedStatus('✅ メッセージを送信しました');
             } else {
                 this.statusManager.showErrorStatus(`❌ ${result.error || 'メッセージの送信に失敗しました'}`);
@@ -428,19 +455,6 @@ class ChatApp {
      */
     private handleCancelAddApiKey(): void {
         this.apiKeyManager.hideAddApiKeyForm();
-    }
-
-    /**
-     * 新しいセッションの名前を更新
-     */
-    private async updateNewSessionName(firstMessage: string): Promise<void> {
-        try {
-            const sessionName = firstMessage.length > 20 ? firstMessage.substring(0, 20) + '...' : firstMessage;
-            await (window as any).electronAPI.updateSessionName(this.sessionManager.getCurrentSession()?.id, sessionName);
-            await this.sessionManager.loadSessions(); // セッション一覧を更新
-        } catch (error) {
-            console.error('Failed to update session name:', error);
-        }
     }
 
     /**

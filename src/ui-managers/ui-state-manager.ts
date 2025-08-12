@@ -22,6 +22,7 @@ export class UIStateManager {
     private isApiKeySet = false;
     private hasSession = false;
     private isLoading = false;
+    private isNewConversationMode = false; // 新しい会話モードフラグ
 
     constructor(elements: UIStateElements) {
         this.elements = elements;
@@ -52,6 +53,21 @@ export class UIStateManager {
      */
     public setSessionState(hasSession: boolean): void {
         this.hasSession = hasSession;
+        if (hasSession) {
+            this.isNewConversationMode = false; // セッションがあるときは新しい会話モードを無効化
+        }
+        this.updateUIState();
+    }
+
+    /**
+     * 新しい会話モードを設定
+     * @param isNewConversationMode 新しい会話モードかどうか
+     */
+    public setNewConversationMode(isNewConversationMode: boolean): void {
+        this.isNewConversationMode = isNewConversationMode;
+        if (isNewConversationMode) {
+            this.hasSession = false; // 新しい会話モードではセッション状態をfalseに
+        }
         this.updateUIState();
     }
 
@@ -69,11 +85,11 @@ export class UIStateManager {
      */
     public updateUIState(): void {
         const isEnabled = this.isApiKeySet && this.hasSession && !this.isLoading;
-        const isInputEnabled = this.hasSession && !this.isLoading;
+        const isInputEnabled = this.isApiKeySet && (this.hasSession || this.isNewConversationMode) && !this.isLoading;
 
         // チャット関連の有効/無効
         this.elements.chatInput.disabled = !isInputEnabled;
-        this.elements.sendBtn.disabled = !isEnabled;
+        this.elements.sendBtn.disabled = !isInputEnabled;
         this.elements.clearHistoryBtn.disabled = !isEnabled;
 
         // セッション削除ボタン
@@ -88,6 +104,7 @@ export class UIStateManager {
         isApiKeySet?: boolean;
         hasSession?: boolean;
         isLoading?: boolean;
+        isNewConversationMode?: boolean;
     }): void {
         if (state.isApiKeySet !== undefined) {
             this.isApiKeySet = state.isApiKeySet;
@@ -97,6 +114,9 @@ export class UIStateManager {
         }
         if (state.isLoading !== undefined) {
             this.isLoading = state.isLoading;
+        }
+        if (state.isNewConversationMode !== undefined) {
+            this.isNewConversationMode = state.isNewConversationMode;
         }
 
         this.updateUIState();
@@ -119,11 +139,12 @@ export class UIStateManager {
      * 現在の状態を取得
      * @returns 現在のUI状態
      */
-    public getState(): { isApiKeySet: boolean; hasSession: boolean; isLoading: boolean } {
+    public getState(): { isApiKeySet: boolean; hasSession: boolean; isLoading: boolean; isNewConversationMode: boolean } {
         return {
             isApiKeySet: this.isApiKeySet,
             hasSession: this.hasSession,
-            isLoading: this.isLoading
+            isLoading: this.isLoading,
+            isNewConversationMode: this.isNewConversationMode
         };
     }
 
@@ -145,7 +166,8 @@ export class UIStateManager {
         this.setState({
             isApiKeySet: false,
             hasSession: false,
-            isLoading: false
+            isLoading: false,
+            isNewConversationMode: false
         });
     }
 
@@ -171,6 +193,6 @@ export class UIStateManager {
      * @returns 入力可能な状態かどうか
      */
     public isInputEnabled(): boolean {
-        return this.hasSession && !this.isLoading;
+        return this.isApiKeySet && (this.hasSession || this.isNewConversationMode) && !this.isLoading;
     }
 }
