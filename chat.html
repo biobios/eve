@@ -17,13 +17,120 @@
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             height: 100vh;
             display: flex;
-            flex-direction: column;
             color: #333;
+            overflow: hidden;
+        }
+
+        /* サイドバー */
+        .sidebar {
+            position: fixed;
+            left: 0;
+            top: 0;
+            width: 320px;
+            height: 100vh;
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            box-shadow: 2px 0 20px rgba(0, 0, 0, 0.1);
+            transform: translateX(-100%);
+            transition: transform 0.3s ease;
+            z-index: 100;
+            display: flex;
+            flex-direction: column;
+            overflow-y: auto;
+        }
+
+        .sidebar.open {
+            transform: translateX(0);
+        }
+
+        .sidebar-header {
+            padding: 20px;
+            border-bottom: 1px solid rgba(0, 0, 0, 0.1);
+        }
+
+        .sidebar-title {
+            font-size: 18px;
+            font-weight: 600;
+            color: #4a5568;
+            margin-bottom: 10px;
+        }
+
+        .sidebar-close {
+            position: absolute;
+            top: 15px;
+            right: 15px;
+            background: none;
+            border: none;
+            font-size: 20px;
+            cursor: pointer;
+            color: #666;
+            padding: 5px;
+            border-radius: 4px;
+            transition: background 0.2s ease;
+        }
+
+        .sidebar-close:hover {
+            background: rgba(0, 0, 0, 0.1);
+        }
+
+        /* ハンバーガーメニューボタン */
+        .hamburger-btn {
+            position: fixed;
+            top: 20px;
+            left: 20px;
+            width: 50px;
+            height: 50px;
+            background: rgba(255, 255, 255, 0.9);
+            border: none;
+            border-radius: 12px;
+            cursor: pointer;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            gap: 4px;
+            transition: all 0.3s ease;
+            z-index: 200;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+        }
+
+        .hamburger-btn:hover {
+            background: rgba(255, 255, 255, 1);
+            transform: scale(1.05);
+        }
+
+        .hamburger-line {
+            width: 20px;
+            height: 2px;
+            background: #4a5568;
+            border-radius: 1px;
+            transition: all 0.3s ease;
+        }
+
+        .hamburger-btn.active .hamburger-line:nth-child(1) {
+            transform: rotate(45deg) translate(5px, 5px);
+        }
+
+        .hamburger-btn.active .hamburger-line:nth-child(2) {
+            opacity: 0;
+        }
+
+        .hamburger-btn.active .hamburger-line:nth-child(3) {
+            transform: rotate(-45deg) translate(7px, -6px);
+        }
+
+        /* メインコンテンツエリア */
+        .main-content {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            margin-left: 0;
+            transition: margin-left 0.3s ease;
         }
 
         .header {
             background: rgba(255, 255, 255, 0.95);
-            padding: 20px;
+            padding: 20px 20px 20px 80px;
             backdrop-filter: blur(10px);
             box-shadow: 0 2px 20px rgba(0, 0, 0, 0.1);
             border-bottom: 1px solid rgba(255, 255, 255, 0.3);
@@ -36,6 +143,56 @@
             font-weight: 600;
         }
 
+        /* サイドバー内のAPIキー管理セクション */
+        .sidebar .api-key-section {
+            background: transparent;
+            padding: 20px;
+            border-bottom: 1px solid rgba(0, 0, 0, 0.1);
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+
+        .sidebar .api-key-section.hidden {
+            display: none;
+        }
+
+        /* サイドバー内のセッション管理セクション */
+        .sidebar .session-section {
+            background: transparent;
+            padding: 15px 20px;
+            border-bottom: 1px solid rgba(0, 0, 0, 0.1);
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .sidebar .session-section.hidden {
+            display: none;
+        }
+
+        /* サイドバー内のAPIキー管理セクション */
+        .sidebar .api-key-management-section {
+            background: transparent;
+            padding: 15px 20px;
+            border-bottom: 1px solid rgba(0, 0, 0, 0.1);
+        }
+
+        .sidebar .api-key-management-section.hidden {
+            display: none;
+        }
+
+        /* セクションタイトル */
+        .sidebar-section-title {
+            font-size: 14px;
+            font-weight: 600;
+            color: #4a5568;
+            margin-bottom: 15px;
+            padding-bottom: 8px;
+            border-bottom: 1px solid rgba(0, 0, 0, 0.1);
+        }
+
+        /* 従来のスタイルを削除して、サイドバー用のスタイルに置き換える */
         .api-key-section {
             background: rgba(255, 255, 255, 0.9);
             padding: 20px;
@@ -47,6 +204,50 @@
 
         .api-key-section.hidden {
             display: none;
+        }
+
+        /* APIキー入力とボタンのスタイル */
+        .api-key-input {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #e2e8f0;
+            border-radius: 8px;
+            font-size: 14px;
+            margin-bottom: 10px;
+            box-sizing: border-box;
+        }
+
+        .api-key-input:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        .btn {
+            padding: 10px 16px;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 600;
+            transition: all 0.3s ease;
+        }
+
+        .btn-primary {
+            background: #667eea;
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background: #5a67d8;
+        }
+
+        .btn-secondary {
+            background: #718096;
+            color: white;
+        }
+
+        .btn-secondary:hover {
+            background: #4a5568;
         }
 
         .api-key-input-group {
@@ -667,6 +868,33 @@
 
         /* レスポンシブ対応 */
         @media (max-width: 768px) {
+            .sidebar {
+                width: 100%;
+            }
+
+            .hamburger-btn {
+                top: 15px;
+                left: 15px;
+                width: 45px;
+                height: 45px;
+            }
+
+            .header {
+                padding: 15px 15px 15px 70px;
+            }
+
+            .header h1 {
+                font-size: 20px;
+            }
+
+            .sidebar-section-title {
+                font-size: 13px;
+            }
+
+            .form-row {
+                flex-direction: column;
+            }
+
             .chat-container {
                 margin: 10px;
             }
@@ -674,121 +902,160 @@
             .message {
                 max-width: 95%;
             }
+        }
+
+        @media (max-width: 480px) {
+            .hamburger-btn {
+                width: 40px;
+                height: 40px;
+            }
+
+            .hamburger-line {
+                width: 16px;
+            }
+
+            .header {
+                padding: 10px 10px 10px 60px;
+            }
 
             .header h1 {
-                font-size: 24px;
+                font-size: 18px;
             }
         }
     </style>
 </head>
 
 <body>
-    <div class="header">
-        <h1>🤖 Eve AI Chat Assistant</h1>
-    </div>
+    <!-- ハンバーガーメニューボタン -->
+    <button class="hamburger-btn" id="hamburgerBtn">
+        <div class="hamburger-line"></div>
+        <div class="hamburger-line"></div>
+        <div class="hamburger-line"></div>
+    </button>
 
-    <div class="api-key-section" id="apiKeySection">
-        <div class="api-key-input-group">
-            <input type="password" id="apiKeyInput" class="api-key-input"
-                placeholder="Google Gemini API キーを入力してください...">
-            <div class="api-key-options">
-                <label class="checkbox-label">
-                    <input type="checkbox" id="saveApiKeyCheckbox">
-                    <span>APIキーを保存する（暗号化）</span>
-                </label>
-                <button class="btn btn-danger btn-small" id="deleteSavedApiKeyBtn"
-                    style="display: none;">保存済みキーを削除</button>
+    <!-- サイドバー -->
+    <div class="sidebar" id="sidebar">
+        <div class="sidebar-header">
+            <div class="sidebar-title">メニュー</div>
+            <button class="sidebar-close" id="sidebarClose">×</button>
+        </div>
+
+        <!-- セッション管理セクション -->
+        <div class="session-section" id="sessionSection">
+            <div class="sidebar-section-title">セッション管理</div>
+            <div class="session-controls">
+                <select id="sessionSelect" class="session-select">
+                    <option value="">セッションを選択...</option>
+                </select>
+                <div style="display: flex; gap: 8px; margin-top: 8px;">
+                    <button class="session-btn" id="newSessionBtn">新規</button>
+                    <button class="session-btn danger" id="deleteSessionBtn">削除</button>
+                </div>
             </div>
         </div>
-        <div class="api-key-buttons">
-            <button class="btn btn-primary" id="setApiKeyBtn">設定</button>
-            <button class="btn btn-secondary" id="cancelApiKeyBtn" style="display: none;">キャンセル</button>
-        </div>
-    </div>
 
-    <div class="session-section hidden" id="sessionSection">
-        <div class="session-controls">
-            <select id="sessionSelect" class="session-select">
-                <option value="">セッションを選択...</option>
-            </select>
-            <button class="session-btn" id="newSessionBtn">新規</button>
-            <button class="session-btn danger" id="deleteSessionBtn">削除</button>
-        </div>
-    </div>
-
-    <!-- APIキー管理セクション -->
-    <div class="api-key-management-section hidden" id="apiKeyManagementSection">
-        <div class="api-key-management-header">
-            <span class="api-key-management-title">APIキー管理</span>
-            <button class="api-key-management-toggle" id="toggleApiKeyManagement">管理</button>
-        </div>
-        <div class="api-key-management-content" id="apiKeyManagementContent">
-            <!-- APIキー一覧 -->
-            <div class="api-key-list" id="apiKeyList">
-                <!-- APIキーが動的に追加される -->
+        <!-- APIキー設定セクション -->
+        <div class="api-key-section" id="apiKeySection">
+            <div class="sidebar-section-title">APIキー設定</div>
+            <div class="api-key-input-group">
+                <input type="password" id="apiKeyInput" class="api-key-input"
+                    placeholder="Google Gemini API キーを入力してください...">
+                <div class="api-key-options">
+                    <label class="checkbox-label">
+                        <input type="checkbox" id="saveApiKeyCheckbox">
+                        <span>APIキーを保存する（暗号化）</span>
+                    </label>
+                    <button class="btn btn-danger btn-small" id="deleteSavedApiKeyBtn"
+                        style="display: none;">保存済みキーを削除</button>
+                </div>
             </div>
+            <div class="api-key-buttons">
+                <button class="btn btn-primary" id="setApiKeyBtn">設定</button>
+                <button class="btn btn-secondary" id="cancelApiKeyBtn" style="display: none;">キャンセル</button>
+            </div>
+        </div>
 
-            <!-- APIキー追加ボタン -->
-            <button class="btn btn-primary btn-small" id="showAddApiKeyFormBtn">新しいAPIキーを追加</button>
+        <!-- APIキー管理セクション -->
+        <div class="api-key-management-section" id="apiKeyManagementSection">
+            <div class="api-key-management-header">
+                <span class="api-key-management-title">APIキー管理</span>
+                <button class="api-key-management-toggle" id="toggleApiKeyManagement">管理</button>
+            </div>
+            <div class="api-key-management-content" id="apiKeyManagementContent">
+                <!-- APIキー一覧 -->
+                <div class="api-key-list" id="apiKeyList">
+                    <!-- APIキーが動的に追加される -->
+                </div>
 
-            <!-- APIキー追加フォーム -->
-            <div class="add-api-key-form" id="addApiKeyForm">
-                <h4>新しいAPIキーを追加</h4>
-                <div class="form-row">
-                    <div class="form-group">
-                        <label for="addApiKeyService">サービス</label>
-                        <select id="addApiKeyService">
-                            <option value="gemini">Google Gemini</option>
-                        </select>
+                <!-- APIキー追加ボタン -->
+                <button class="btn btn-primary btn-small" id="showAddApiKeyFormBtn">新しいAPIキーを追加</button>
+
+                <!-- APIキー追加フォーム -->
+                <div class="add-api-key-form" id="addApiKeyForm">
+                    <h4>新しいAPIキーを追加</h4>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="addApiKeyService">サービス</label>
+                            <select id="addApiKeyService">
+                                <option value="gemini">Google Gemini</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label for="addApiKeyModel">AIモデル</label>
+                            <select id="addApiKeyModel">
+                                <option value="gemini-1.5-flash">Gemini 1.5 Flash</option>
+                                <option value="gemini-1.5-pro">Gemini 1.5 Pro</option>
+                                <option value="gemini-2.0-flash">Gemini 2.0 Flash</option>
+                            </select>
+                        </div>
                     </div>
                     <div class="form-group">
-                        <label for="addApiKeyModel">AIモデル</label>
-                        <select id="addApiKeyModel">
-                            <option value="gemini-1.5-flash">Gemini 1.5 Flash</option>
-                            <option value="gemini-1.5-pro">Gemini 1.5 Pro</option>
-                            <option value="gemini-2.0-flash">Gemini 2.0 Flash</option>
-                        </select>
+                        <label for="addApiKeyValue">APIキー</label>
+                        <input type="password" id="addApiKeyValue" placeholder="AIzaSy...">
                     </div>
-                </div>
-                <div class="form-group">
-                    <label for="addApiKeyValue">APIキー</label>
-                    <input type="password" id="addApiKeyValue" placeholder="AIzaSy...">
-                </div>
-                <div class="form-group">
-                    <label for="addApiKeyDescription">説明（オプション）</label>
-                    <input type="text" id="addApiKeyDescription" placeholder="用途や環境の説明">
-                </div>
-                <div class="add-api-key-buttons">
-                    <button class="btn btn-add" id="addApiKeyBtn">追加</button>
-                    <button class="btn btn-cancel" id="cancelAddApiKeyBtn">キャンセル</button>
+                    <div class="form-group">
+                        <label for="addApiKeyDescription">説明（オプション）</label>
+                        <input type="text" id="addApiKeyDescription" placeholder="用途や環境の説明">
+                    </div>
+                    <div class="add-api-key-buttons">
+                        <button class="btn btn-add" id="addApiKeyBtn">追加</button>
+                        <button class="btn btn-cancel" id="cancelAddApiKeyBtn">キャンセル</button>
+                    </div>
                 </div>
             </div>
         </div>
     </div>
 
-    <div class="status" id="status">API キーを設定してください</div>
-
-    <div class="chat-container">
-        <div class="chat-messages" id="chatMessages">
-            <div class="message ai">
-                こんにちは！私はEve AI アシスタントです。🌟<br>
-                Google Gemini AI を使用して、様々な質問にお答えします。<br>
-                まずは上部にAPI キーを設定してから、何でもお聞きください！
-            </div>
+    <!-- メインコンテンツエリア -->
+    <div class="main-content">
+        <div class="header">
+            <h1>🤖 Eve AI Chat Assistant</h1>
         </div>
 
-        <div class="chat-input-container">
-            <div class="chat-controls">
-                <span style="font-size: 12px; color: #666;">💡 Shift+Enterで改行</span>
-                <button class="btn-clear" id="clearHistoryBtn" disabled>🗑️ 履歴クリア</button>
+        <div class="status" id="status">API キーを設定してください</div>
+
+        <div class="chat-container">
+            <div class="chat-messages" id="chatMessages">
+                <div class="message ai">
+                    こんにちは！私はEve AI アシスタントです。🌟<br>
+                    Google Gemini AI を使用して、様々な質問にお答えします。<br>
+                    まずは左のメニューでAPI キーを設定してから、何でもお聞きください！
+                </div>
             </div>
-            <div class="chat-input-wrapper">
-                <textarea id="chatInput" class="chat-input" placeholder="メッセージを入力してください..." rows="1"
-                    disabled></textarea>
-                <button class="send-btn" id="sendBtn" disabled>
-                    <span id="sendBtnText">送信</span>
-                    <span id="sendBtnLoading" class="loading" style="display: none;"></span>
-                </button>
+
+            <div class="chat-input-container">
+                <div class="chat-controls">
+                    <span style="font-size: 12px; color: #666;">💡 Shift+Enterで改行</span>
+                    <button class="btn-clear" id="clearHistoryBtn" disabled>🗑️ 履歴クリア</button>
+                </div>
+                <div class="chat-input-wrapper">
+                    <textarea id="chatInput" class="chat-input" placeholder="メッセージを入力してください..." rows="1"
+                        disabled></textarea>
+                    <button class="send-btn" id="sendBtn" disabled>
+                        <span id="sendBtnText">送信</span>
+                        <span id="sendBtnLoading" class="loading" style="display: none;"></span>
+                    </button>
+                </div>
             </div>
         </div>
     </div>

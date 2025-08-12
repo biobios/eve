@@ -1,6 +1,11 @@
 // UI要素の管理とイベントリスナー設定を担当するクラス
 
 export interface UIElements {
+    // サイドバー関連
+    hamburgerBtn: HTMLButtonElement;
+    sidebar: HTMLDivElement;
+    sidebarClose: HTMLButtonElement;
+
     // API関連
     apiKeySection: HTMLDivElement;
     apiKeyInput: HTMLInputElement;
@@ -52,6 +57,10 @@ export type ChangeEventCallback = (e: Event) => void;
 export type ClickEventCallback = (e: MouseEvent) => void;
 
 export interface EventHandlers {
+    // サイドバー関連
+    onToggleSidebar: EventCallback;
+    onCloseSidebar: EventCallback;
+
     // API関連
     onSetApiKey: EventCallback;
     onDeleteSavedApiKey: EventCallback;
@@ -99,6 +108,11 @@ export class UIElementManager {
      */
     private initializeElements(): UIElements {
         return {
+            // サイドバー関連
+            hamburgerBtn: this.getElement('hamburgerBtn') as HTMLButtonElement,
+            sidebar: this.getElement('sidebar') as HTMLDivElement,
+            sidebarClose: this.getElement('sidebarClose') as HTMLButtonElement,
+
             // API関連
             apiKeySection: this.getElement('apiKeySection') as HTMLDivElement,
             apiKeyInput: this.getElement('apiKeyInput') as HTMLInputElement,
@@ -160,6 +174,10 @@ export class UIElementManager {
      * イベントハンドラーを設定
      */
     public setupEventListeners(handlers: EventHandlers): void {
+        // サイドバー関連
+        this.elements.hamburgerBtn.addEventListener('click', handlers.onToggleSidebar);
+        this.elements.sidebarClose.addEventListener('click', handlers.onCloseSidebar);
+
         // API関連
         this.elements.setApiKeyBtn.addEventListener('click', handlers.onSetApiKey);
         this.elements.deleteSavedApiKeyBtn.addEventListener('click', handlers.onDeleteSavedApiKey);

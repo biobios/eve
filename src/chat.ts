@@ -11,6 +11,8 @@ import {
     EventHandlers,
     SessionElements,
     SessionUIManager,
+    SidebarElements,
+    SidebarManager,
     StatusManager,
     UIElementManager,
     UIStateElements,
@@ -31,6 +33,7 @@ class ChatApp {
     private statusManager!: StatusManager;
     private dialogManager!: DialogManager;
     private uiStateManager!: UIStateManager;
+    private sidebarManager!: SidebarManager;
 
     // 機能管理
     private chatManager!: ChatManager;
@@ -106,6 +109,15 @@ class ChatApp {
         };
         this.apiKeyManager = new ApiKeyUIManager(apiKeyElements);
 
+        // サイドバー管理の初期化
+        const sidebarElements: SidebarElements = {
+            hamburgerBtn: elements.hamburgerBtn,
+            sidebar: elements.sidebar,
+            sidebarClose: elements.sidebarClose
+        };
+        this.sidebarManager = new SidebarManager(sidebarElements);
+        this.sidebarManager.setupClickOutside();
+
         // UI状態管理の初期化
         const uiStateElements: UIStateElements = {
             apiKeySection: elements.apiKeySection,
@@ -139,6 +151,10 @@ class ChatApp {
      */
     private bindEvents(): void {
         const handlers: EventHandlers = {
+            // サイドバー関連
+            onToggleSidebar: this.handleToggleSidebar.bind(this),
+            onCloseSidebar: this.handleCloseSidebar.bind(this),
+
             // API関連
             onSetApiKey: this.handleSetApiKey.bind(this),
             onDeleteSavedApiKey: this.handleDeleteSavedApiKey.bind(this),
@@ -425,6 +441,20 @@ class ChatApp {
         } catch (error) {
             console.error('Failed to update session name:', error);
         }
+    }
+
+    /**
+     * サイドバー開閉切り替えイベントハンドラー
+     */
+    private handleToggleSidebar(): void {
+        this.sidebarManager.toggleSidebar();
+    }
+
+    /**
+     * サイドバー閉じるイベントハンドラー
+     */
+    private handleCloseSidebar(): void {
+        this.sidebarManager.closeSidebar();
     }
 
     /**
